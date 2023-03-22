@@ -1,0 +1,9 @@
+{
+  "alterPercentage": 34,
+  "nullablePercentage": 20,
+  "noMutationPercentage": 33,
+  "percentageCombineRecords": 50,
+  "combinePercentage": 33,
+  "patternPercentage": 50,
+  "percentageRandomValues": 50
+}

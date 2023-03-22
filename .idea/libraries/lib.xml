@@ -5,6 +5,7 @@
       <root url="jar://$PROJECT_DIR$/libraries/mssql-jdbc-9.2.1.jre15.jar!/" />
       <root url="jar://$PROJECT_DIR$/libraries/mysql-connector-java-8.0.22.jar!/" />
       <root url="jar://$PROJECT_DIR$/libraries/sqlite-jdbc-3.36.0.3.jar!/" />
+      <root url="jar://$PROJECT_DIR$/libraries/PatternGenerator.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="GraphSQL">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/libraries/GraphSQL.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
