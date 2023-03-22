@@ -1,0 +1,453 @@
+GRAVITY_BOOKS SPLIT% = 30 OVERLAPPING% = 50
+
+ORDER_HISTORY:
+ - Tipo: source
+ - Records: 22346
+
+Records:		DB1	DB2
+ Expected:		15642,2	6703,8
+ Restrict:		15642	6704
+ Cascade:		1289	1
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 0
+ Cascade: 0
+
+
+COUNTRY:
+ - Tipo: well
+ - Records: 232
+
+Records:		DB1	DB2
+ Expected:		162,4	69,6
+ Restrict:		232	232
+ Cascade:		162	70
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 232
+ Cascade: 0
+
+
+CUSTOMER_ADDRESS:
+ - Tipo: source
+ - Records: 3350
+
+Records:		DB1	DB2
+ Expected:		2345,0	1005,0
+ Restrict:		2345	1005
+ Cascade:		367	60
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 0
+ Cascade: 0
+
+
+ADDRESS:
+ - Tipo: mid_node
+ - Records: 1000
+
+Records:		DB1	DB2
+ Expected:		700,0	300,0
+ Restrict:		1000	1000
+ Cascade:		232	197
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 1000
+ Cascade: 0
+
+
+AUTHOR:
+ - Tipo: well
+ - Records: 9235
+
+Records:		DB1	DB2
+ Expected:		6464,5	2770,5
+ Restrict:		9235	9235
+ Cascade:		6464	2771
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 9235
+ Cascade: 0
+
+
+BOOK:
+ - Tipo: mid_node
+ - Records: 11127
+
+Records:		DB1	DB2
+ Expected:		7788,9	3338,1
+ Restrict:		11127	11127
+ Cascade:		4638	157
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 11127
+ Cascade: 0
+
+
+BOOK_AUTHOR:
+ - Tipo: source
+ - Records: 17642
+
+Records:		DB1	DB2
+ Expected:		12349,4	5292,6
+ Restrict:		12349	5293
+ Cascade:		3652	21
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 0
+ Cascade: 0
+
+
+BOOK_LANGUAGE:
+ - Tipo: well
+ - Records: 27
+
+Records:		DB1	DB2
+ Expected:		18,9	8,1
+ Restrict:		27	27
+ Cascade:		19	8
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 27
+ Cascade: 0
+
+
+ADDRESS_STATUS:
+ - Tipo: external_node
+ - Records: 2
+
+Records:		DB1	DB2
+ Expected:		1,4	0,6
+ Restrict:		1	1
+ Cascade:		1	1
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 0
+ Cascade: 0
+
+
+ORDER_STATUS:
+ - Tipo: well
+ - Records: 6
+
+Records:		DB1	DB2
+ Expected:		4,2	1,8
+ Restrict:		6	6
+ Cascade:		4	2
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 6
+ Cascade: 0
+
+
+SHIPPING_METHOD:
+ - Tipo: well
+ - Records: 4
+
+Records:		DB1	DB2
+ Expected:		2,8	1,2
+ Restrict:		4	4
+ Cascade:		3	1
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 4
+ Cascade: 0
+
+
+CUST_ORDER:
+ - Tipo: mid_node
+ - Records: 7550
+
+Records:		DB1	DB2
+ Expected:		5285,0	2265,0
+ Restrict:		7550	7550
+ Cascade:		650	37
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 7550
+ Cascade: 0
+
+
+ORDER_LINE:
+ - Tipo: source
+ - Records: 15398
+
+Records:		DB1	DB2
+ Expected:		10778,6	4619,4
+ Restrict:		10779	4619
+ Cascade:		391	0
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 0
+ Cascade: 0
+
+
+PUBLISHER:
+ - Tipo: well
+ - Records: 2264
+
+Records:		DB1	DB2
+ Expected:		1584,8	679,2
+ Restrict:		2264	2264
+ Cascade:		1585	679
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 2264
+ Cascade: 0
+
+
+CUSTOMER:
+ - Tipo: well
+ - Records: 2000
+
+Records:		DB1	DB2
+ Expected:		1400,0	600,0
+ Restrict:		2000	2000
+ Cascade:		1400	600
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 2000
+ Cascade: 0
+
+
+______________________________
+GRAVITY_BOOKS SPLIT% = 30 OVERLAPPING% = 50
+
+ORDER_HISTORY:
+ - Tipo: source
+ - Records: 22346
+
+Records:		DB1	DB2
+ Expected:		15642,2	6703,8
+ Restrict:		15642	6704
+ Cascade:		2263	5
+
+Overlapping:
+ Expected: 3352,0
+ Restrict: 3352
+ Cascade: 1
+
+
+COUNTRY:
+ - Tipo: well
+ - Records: 232
+
+Records:		DB1	DB2
+ Expected:		162,4	69,6
+ Restrict:		232	232
+ Cascade:		162	70
+
+Overlapping:
+ Expected: 35,0
+ Restrict: 232
+ Cascade: 35
+
+
+CUSTOMER_ADDRESS:
+ - Tipo: source
+ - Records: 3350
+
+Records:		DB1	DB2
+ Expected:		2345,0	1005,0
+ Restrict:		2345	1005
+ Cascade:		770	19
+
+Overlapping:
+ Expected: 503,0
+ Restrict: 503
+ Cascade: 4
+
+
+ADDRESS:
+ - Tipo: mid_node
+ - Records: 1000
+
+Records:		DB1	DB2
+ Expected:		700,0	300,0
+ Restrict:		1000	1000
+ Cascade:		458	61
+
+Overlapping:
+ Expected: 150,0
+ Restrict: 1000
+ Cascade: 26
+
+
+AUTHOR:
+ - Tipo: well
+ - Records: 9235
+
+Records:		DB1	DB2
+ Expected:		6464,5	2770,5
+ Restrict:		9235	9235
+ Cascade:		6464	2771
+
+Overlapping:
+ Expected: 1385,0
+ Restrict: 9235
+ Cascade: 1386
+
+
+BOOK:
+ - Tipo: mid_node
+ - Records: 11127
+
+Records:		DB1	DB2
+ Expected:		7788,9	3338,1
+ Restrict:		11127	11127
+ Cascade:		927	150
+
+Overlapping:
+ Expected: 1669,0
+ Restrict: 11127
+ Cascade: 28
+
+
+BOOK_AUTHOR:
+ - Tipo: source
+ - Records: 17642
+
+Records:		DB1	DB2
+ Expected:		12349,4	5292,6
+ Restrict:		12349	5293
+ Cascade:		641	18
+
+Overlapping:
+ Expected: 2646,0
+ Restrict: 2647
+ Cascade: 2
+
+
+BOOK_LANGUAGE:
+ - Tipo: well
+ - Records: 27
+
+Records:		DB1	DB2
+ Expected:		18,9	8,1
+ Restrict:		27	27
+ Cascade:		19	8
+
+Overlapping:
+ Expected: 4,0
+ Restrict: 27
+ Cascade: 4
+
+
+ADDRESS_STATUS:
+ - Tipo: external_node
+ - Records: 2
+
+Records:		DB1	DB2
+ Expected:		1,4	0,6
+ Restrict:		1	1
+ Cascade:		1	1
+
+Overlapping:
+ Expected: 0,0
+ Restrict: 1
+ Cascade: 1
+
+
+ORDER_STATUS:
+ - Tipo: well
+ - Records: 6
+
+Records:		DB1	DB2
+ Expected:		4,2	1,8
+ Restrict:		6	6
+ Cascade:		4	2
+
+Overlapping:
+ Expected: 1,0
+ Restrict: 6
+ Cascade: 1
+
+
+SHIPPING_METHOD:
+ - Tipo: well
+ - Records: 4
+
+Records:		DB1	DB2
+ Expected:		2,8	1,2
+ Restrict:		4	4
+ Cascade:		3	1
+
+Overlapping:
+ Expected: 1,0
+ Restrict: 4
+ Cascade: 1
+
+
+CUST_ORDER:
+ - Tipo: mid_node
+ - Records: 7550
+
+Records:		DB1	DB2
+ Expected:		5285,0	2265,0
+ Restrict:		7550	7550
+ Cascade:		1357	9
+
+Overlapping:
+ Expected: 1133,0
+ Restrict: 7550
+ Cascade: 2
+
+
+ORDER_LINE:
+ - Tipo: source
+ - Records: 15398
+
+Records:		DB1	DB2
+ Expected:		10778,6	4619,4
+ Restrict:		10779	4619
+ Cascade:		151	0
+
+Overlapping:
+ Expected: 2310,0
+ Restrict: 2310
+ Cascade: 0
+
+
+PUBLISHER:
+ - Tipo: well
+ - Records: 2264
+
+Records:		DB1	DB2
+ Expected:		1584,8	679,2
+ Restrict:		2264	2264
+ Cascade:		1585	679
+
+Overlapping:
+ Expected: 340,0
+ Restrict: 2264
+ Cascade: 340
+
+
+CUSTOMER:
+ - Tipo: well
+ - Records: 2000
+
+Records:		DB1	DB2
+ Expected:		1400,0	600,0
+ Restrict:		2000	2000
+ Cascade:		1400	600
+
+Overlapping:
+ Expected: 300,0
+ Restrict: 2000
+ Cascade: 300
