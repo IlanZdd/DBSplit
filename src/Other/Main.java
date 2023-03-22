@@ -152,38 +152,46 @@ public class Main {
             if (run)
                 run = retry();
         }
+        if (DBMS.toLowerCase().equals("mysql")) {
+            run = true;
+            String risp = "";
+            while (run) {
+                System.out.println("Effettuare modifiche a uno degli split? (si/no)");
+                risp = input.nextLine();
+                if (risp.equalsIgnoreCase("si")) {
+                    String split = "";
+                    String other = "";
+                    do {
+                        System.out.println("DB_1 o DB_2? Digitare Back per annullare");
+                        split = input.nextLine().toUpperCase();
+                        if (split.equals("BACK")) break;
 
-		run = true;
-		String risp = "";
-		while(run) {
-			System.out.println("Effettuare modifiche a uno degli split? (si/no)");
-			risp = input.nextLine();
-			if(risp.equalsIgnoreCase("si")) {
-                String split = "";
-
-                do {
-                    System.out.println("DB1 o DB2? Digitare Back per annullare");
-                    split = input.nextLine().toUpperCase();
+                        if (!split.equals(DB1) && !split.equals(DB2))
+                            System.out.println("Input invalido");
+                    } while (!split.equals(DB1) && !split.equals(DB2));
                     if (split.equals("BACK")) break;
-
-                    if (!split.equals("DB1") && !split.equals("DB2"))
-                        System.out.println("Input invalido");
-                } while(!split.equals("DB1") && !split.equals("DB2"));
-
-                switch (split) {
-                    case "DB1" -> split = DB1;
-                    case "DB2" -> split = DB2;
+                    if (split.equals(DB1))
+                        other = DB2;
+                    else
+                        other = DB1;
+                    DBMutation mutation = new DBMutation(DBMS, sv, user, password, split);
+                    mutation.mutate();
+                    System.out.println("Vuoi effettuare mutazioni anche a " + other + "?");
+                    do {
+                        risp = input.nextLine().toLowerCase();
+                    } while (!risp.equals("si") && !risp.equals("no"));
+                    if (risp.equals("si")) {
+                        mutation = new DBMutation(DBMS, sv, user, password, other);
+                        mutation.mutate();
+                    }
+                    run = false;
+                } else if (risp.equalsIgnoreCase("no")) {
+                    run = false;
+                } else {
+                    System.out.println("Devi rispondere si o no");
                 }
-
-				DBMutation mutation = new DBMutation(DBMS, sv, user, password, split);
-                mutation.mutate();
-				run = false;
-			}else if(risp.equalsIgnoreCase("no")) {
-				run = false;
-			} else {
-                System.out.println("Devi rispondere si o no");
             }
-		}
+        }
 
         System.out.println("DBSplit Completed...");
         System.out.println("Summary:");
