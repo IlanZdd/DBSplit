@@ -1,4 +1,4 @@
-package src.Generator;
+package src.DBMutation.Generator;
 
 import Graph.*;
 
@@ -6,7 +6,6 @@ import java.sql.Connection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 public class GeneratorController {
     String dbName;

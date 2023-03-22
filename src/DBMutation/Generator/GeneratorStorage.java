@@ -1,4 +1,6 @@
-package src.Generator;
+package src.DBMutation.Generator;
+
+import src.DBMutation.Generator.field.StringField;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -6,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class GeneratorStorage {
+class GeneratorStorage {
     private static List<String> names;
     private static List<String> lastNames;
     private static List<String> countries;
@@ -58,7 +60,7 @@ public class GeneratorStorage {
         }
     }
 
-    public static String getValue(generator.field.StringField field) {
+    public static String getValue(StringField field) {
         String value = "";
         Random r = new Random();
         do {

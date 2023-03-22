@@ -1,4 +1,4 @@
-package src.Generator.field;
+package src.DBMutation.Generator.field;
 
 public enum Type {
     NAME,

@@ -1,9 +1,10 @@
-package src.Generator;
+package src.DBMutation.Generator;
 
 import Graph.Column;
 import Graph.ForeignKeyColumn;
 import Graph.Graph;
-import src.Generator.field.*;
+import com.github.curiousoddman.rgxgen.RgxGen;
+import src.DBMutation.Generator.field.*;
 import patterngenerator.PatternGenerator;
 
 import java.math.BigDecimal;
@@ -513,7 +514,7 @@ public class Generator {
                         } while (s2.equals(s1));
                     }
                 } else if (getRandom) {
-                    s.increasePossibleValues();
+                    //s.increasePossibleValues();
                     getRandomlyGeneratedValue(s);
                 } else {
 

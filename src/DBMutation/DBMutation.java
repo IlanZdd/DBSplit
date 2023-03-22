@@ -1,13 +1,14 @@
-package src.Other;
+package src.DBMutation;
 
 import Graph.Column;
 import Graph.ForeignKeyColumn;
 import Graph.Graph;
 
-import src.Generator.Generator;
-import src.Generator.GeneratorController;
+import src.DBMutation.Generator.Generator;
+import src.DBMutation.Generator.GeneratorController;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+import src.Other.DBConnection;
 
 import java.io.*;
 import java.sql.*;

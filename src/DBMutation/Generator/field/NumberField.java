@@ -1,4 +1,4 @@
-package src.Generator.field;
+package src.DBMutation.Generator.field;
 
 import java.sql.Types;
 import java.util.Date;
