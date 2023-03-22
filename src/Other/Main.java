@@ -1,5 +1,6 @@
 package src.Other;
 
+import src.DBMutation.DBMutation;
 import src.DBSBaseline.DBSplit_Baseline;
 import src.DBSFromHigher.DBSplit_from_higher;
 import src.DBSKnapsack.DBSplit_Knapsack;
@@ -151,22 +152,39 @@ public class Main {
             if (run)
                 run = retry();
         }
-/*
-        MUTATIONS
+
 		run = true;
-		risp = "";
+		String risp = "";
 		while(run) {
-			System.out.println("Effettuare modifiche al database? (si/no)");
-			risp = tastiera.nextLine();
+			System.out.println("Effettuare modifiche a uno degli split? (si/no)");
+			risp = input.nextLine();
 			if(risp.equalsIgnoreCase("si")) {
-				DBMutation.mutation(db);
+                String split = "";
+
+                do {
+                    System.out.println("DB1 o DB2? Digitare Back per annullare");
+                    split = input.nextLine().toUpperCase();
+                    if (split.equals("BACK")) break;
+
+                    if (!split.equals("DB1") && !split.equals("DB2"))
+                        System.out.println("Input invalido");
+                } while(!split.equals("DB1") && !split.equals("DB2"));
+
+                switch (split) {
+                    case "DB1" -> split = DB1;
+                    case "DB2" -> split = DB2;
+                }
+
+				DBMutation mutation = new DBMutation(DBMS, sv, user, password, split);
+                mutation.mutate();
 				run = false;
 			}else if(risp.equalsIgnoreCase("no")) {
 				run = false;
-			}
+			} else {
+                System.out.println("Devi rispondere si o no");
+            }
 		}
 
- */
         System.out.println("DBSplit Completed...");
         System.out.println("Summary:");
         System.out.println("DB Name: " + DB);
