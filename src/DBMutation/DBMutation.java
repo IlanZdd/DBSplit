@@ -954,6 +954,7 @@ public class DBMutation {
 				if (remaining < threshold) threshold = remaining;
 				insertionQuery = new StringBuilder(insertionQuery.substring(0, insertionQuery.length() - 1));
 				try {
+					System.out.println(insertionQuery);
 					DBConnection.getConn().createStatement().execute(insertionQuery.toString());
 					insertionQuery = new StringBuilder(startInsertionQuery);
 				} catch (Exception e) {
@@ -1343,29 +1344,26 @@ public class DBMutation {
 		//Finche si è in una certa istanza di mutation, i lowerbound e upperbound dei campi numerici è sempre lo stesso
 		System.out.println("Quante operazioni vuoi effettuare?");
 		Random r = new Random();
-		int howMany = askHowMany();//r.nextInt(100);
+		int howMany = askHowMany();
 		int h = howMany;
 		char[] operations = {'+', '-'};
 
 		int tried = 0;
 		int success = 0;
 		String pKeys = graph.getPrimaryKeysStringInTable(table, ',', "", "");
-
-		Generator gen = generators.get(table);
-		int ub = gen.getUpperBound(column.getName());
-		char operation = /*operations[input.nextInt()];*/operations[r.nextInt(operations.length)];
-		int bound = gen.getOperationBound(column.getName(), operation);
-		double b = (double) ub / 2;
+		char operation =operations[r.nextInt(operations.length)];
+		long operationBound = generatorController.getOperationBound(table, column.getName(), operation);
+		double randomBound = (double) Math.abs(operationBound)/2;
 		char conditionSign = switch(operation) {
-			case '+', '*' -> '<';
-			case '-', '/' -> '>';
+			case '+' -> '<';
+			case '-' -> '>';
 			default -> throw new IllegalStateException("Unexpected value: " + operation);
 		};
 		try {
 			while (howMany > 0) {
-				double random = r.nextDouble(b);
+				double random = r.nextDouble(randomBound);
 				int n = r.nextInt(howMany) + 1;
-				String cond = column.getName() + operation + random + conditionSign + bound;
+				String cond = column.getName() + operation + random + conditionSign + operationBound;
 				query = "UPDATE " + table + " SET " + column.getName() + "=" + column.getName() + operation + random + " " +
 						"WHERE " + (graph.isPrimaryKeyComposedInTable(table) ? "(" + pKeys + ")" : pKeys) + " IN (" +
 						"SELECT " + pKeys + " FROM ( " +
