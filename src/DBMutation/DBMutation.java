@@ -1,37 +1,25 @@
 package src.DBMutation;
 
-import Graph.Column;
-import Graph.ForeignKeyColumn;
-import Graph.Graph;
-
+import Graph.*;
 import src.DBMutation.Generator.Generator;
 import src.DBMutation.Generator.GeneratorController;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import src.Other.DBConnection;
-
 import java.io.*;
 import java.sql.*;
 import java.util.*;
 import java.util.regex.Pattern;
 
-
-
-
 public class DBMutation {
-
 	private static final Scanner input = new Scanner(System.in).useDelimiter("\n");
-	private static String risp="";
-	private static String query="";
+	private static String query = "";
 	private static Statement st = null;
 	private static ResultSet rs = null;
 	private final Graph graph;
-	//private static Connection connection;
 	private final List<String> validTables;
 	private final int insertThreshold = 350;
 	private boolean augmenting = false;
-	private Map<String, Generator> generators;
-
 
 	//Percentages for randomness in generators
 	private int patternPerc, alterPerc, combinePerc, noMutationPerc, nullablePerc; //Percentages for randomness in generators
@@ -43,12 +31,11 @@ public class DBMutation {
 
 	public DBMutation(String DBMS, String sv, String user, String password, String db) {
 		initPercentages();
-
 		try {
 			DBConnection.setConn(DBMS, sv, user, password, db);
 			graph = new Graph(DBMS, DBConnection.getConn(), db);
 
-			validTables = new ArrayList(graph.listTables());
+			validTables = new ArrayList<>(graph.listTables());
 			int i = 0;
 			while(!validTables.isEmpty() && i < validTables.size()) {
 				if (graph.getRecordNumberInTable(validTables.get(i)) == 0 ||
@@ -63,20 +50,6 @@ public class DBMutation {
 		}
 	}
 
-	//Metodo indipendente da DBSplit
-	public DBMutation(Graph DBGraph){
-		initPercentages();
-		graph = DBGraph;
-		validTables = graph.listTables();
-		int i = 0;
-		while(!validTables.isEmpty() && i < validTables.size()) {
-			if (graph.getRecordNumberInTable(validTables.get(i)) == 0 ||
-					graph.getPrimaryKeyNumberInTable(validTables.get(i)) == graph.getColumnNumberInTable(validTables.get(i))) {
-				validTables.remove(i);
-			} else ++i;
-		}
-		generatorController = new GeneratorController(graph.getName(), graph, patternPerc, alterPerc, combinePerc, noMutationPerc, nullablePerc);
-	}
 	public void mutate() {
 		boolean run = true;
 		Pattern augmentationCommand = null;
@@ -96,7 +69,10 @@ public class DBMutation {
 			System.out.println("Oppure\n\tSeleziona una Tabella:");
 			for(String s : validTables)
 				System.out.println("\t" + s);
+			System.out.println("Digita \"back\" per terminare l'esecuzione");
 			String userInput = input.nextLine();
+			if (userInput.equalsIgnoreCase("back")) break;
+
 			if (validTables.contains(userInput)) {
 				String table = userInput;
 				boolean mutatingColumns = true;
@@ -118,6 +94,7 @@ public class DBMutation {
 							validColumns.add(c.getName());
 						}
 					}
+					System.out.println();
 					userInput = input.nextLine();
 
 					if (userInput.equalsIgnoreCase("back")) break;
@@ -237,134 +214,6 @@ public class DBMutation {
 		System.out.println("Fine");
 	}
 
-	public void mutateOld() {
-		String table = "";
-		String operation = "";
-		risp="si";
-		try {
-			DBConnection.getConn().createStatement().execute("Use " + graph.getName());
-		} catch (SQLException e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
-
-		while(risp.equalsIgnoreCase("si")) {
-
-			//Chiede di quale tabella effettuare le mutazioni
-			System.out.println("Comandi:\n" +
-					"\tAugmentation <PercentualeAugmentation> <PercentualeMutation>\n\t\t" +
-					"Effettua augmentation del DB del <PercentualeAugmentation>% e di questi\n\t\tne muta <PercentualeMutation>%\n" +
-					"\t\t<PercentualeMutation> non deve essere > 100");
-			System.out.println("Oppure\n\tSeleziona una Tabella:");
-			for(String s : validTables) {
-				System.out.println("\t" + s);
-			}
-			table = input.nextLine();
-			if (!validTables.contains(table)){
-
-				if (Pattern.compile("Augmentation \\d{1,3} \\d{1,3}").matcher(table).matches()) {
-
-					String[] split = table.split(" ");
-					int percCopy = Integer.parseInt(split[1]);
-					int percMutate = Integer.parseInt(split[2]);
-					System.out.println(percCopy + "; " + percMutate);
-					if (percMutate >= 0 && percMutate <= 100) {
-						if (percCopy > 0) {
-							for (String t : graph.listTables())
-								generatorController.addGenerator(t, DBConnection.getConn());
-
-							while (percCopy > 0) {
-								int copy = Math.min(percCopy, 100);
-								percCopy -= copy;
-								augmentation(percCopy, percMutate);
-							}
-						}
-					} else {
-						System.out.println("Valore di PercMutate Errato: " + percMutate);
-						System.out.println("Riprovare? (si/no)");
-						risp = risposta();
-					}
-
-
-				} else {
-					System.out.println("Tabella vuota perche non presente in lista, Tabella con solo primaryKeys, tabella non esistente oppure comando augmentation errato.");
-					System.out.println("Riprovare? (si/no)");
-					risp = risposta();
-				}
-			} else {
-				//Se è una tabella valida continua, altrimenti chiede di nuovo il nome della tabella
-				while (risp.equalsIgnoreCase("si")) {
-
-					//Chiede su quale colonna effetture mutazioni, oppure di usare il comando per generare records su questa tabella
-					System.out.println("Seleziona la colonna non key per effettuare le mutazioni\n" +
-							"oppure\ndigita \"GenerateRecords <percentualeAumento>\" per aumentare il numero di records del <percentualeAumento>% per " + table + ":\n" +
-							"Numero records attuale: " + graph.getRecordNumberInTable(table));
-					int k = 0;
-					for (Column c : graph.getColumnsInTable(table)) {
-						if (!c.isPrimaryKey()) {
-							System.out.print((k % 3 == 0 ? "\n" : "") + c.getName() + "; ");
-							++k;
-						}
-					}
-					String name = input.nextLine();
-					Column column = graph.searchColumnInTable(name, table);
-
-					//Controlla se vuole usare il comando per generare records
-					if (Pattern.compile("GenerateRecords \\d{1,3}").matcher(name).matches()) {
-						String[] split = name.split(" ");
-						if (split.length == 2) {
-							addGen(table);
-							int howMany = Integer.parseInt(split[1]);
-							generateRandomRecords(table, howMany);
-
-						} else {
-							System.out.println("Comando GenerateRecords errato");
-						}
-
-						//Altrimenti controlla se la colonna esiste e non è primary key
-					} else if (column != null && !column.isPrimaryKey()) {
-						//scelta operazione (blank-modify)
-						//Se la colonna non può essere null offre come unica operazione modify
-						if (!column.isNullable()) {
-							System.out.println("Unica operazione possibile: Modify.\nVuoi eseguirla?");
-							operation = risposta();
-							if (operation.equalsIgnoreCase("si"))
-								operation = "modify";
-							else
-								operation = null;
-						} else {
-							System.out.println("Inserici quale operazione eseguire (blank - modify):");
-							operation = input.nextLine();
-						}
-
-						//se operation ha una risposta al suo interno crea il generatore associato alla tabella
-						//se non esiste
-						if (operation != null) {
-							addGen(table);
-							if (operation.equalsIgnoreCase("blank")) {
-								fillBlanks(column, table);
-							} else if (operation.equalsIgnoreCase("modify")) {
-								modify(column, table);
-
-							} else {
-								System.out.println("Errore, operazione inserita non valida");
-							}
-						}
-					} else {
-						System.out.println("Colonna inserita o non presente, o è primary Key");
-					}
-					System.out.println("Eseguire altre modifiche alla tabella: " + table + "?(si/no)");
-					risp = risposta();
-				}
-				risp = "si";
-
-			}
-
-		}
-		System.out.println("Fine modifiche");
-	}
-
-	private boolean b = false;
 	private String[][] records = null;
 	private int recordsAdded;
 
@@ -738,9 +587,7 @@ public class DBMutation {
 		do {
 			alreadyGenerated = false;
 			if (randomPk != null) {
-				//TODO togliere la seconda condizione
 				if (!areKeysAlreadyIn(values, table, table) && (checkMutated || !areKeysAlreadyIn(values, table, "tempForMutate"))) {
-
 					int columnIndex = columns.indexOf(randomPk);
 					int toMutateStartingIndex = startToSearchFrom;
 					int toCopyStartingIndex = 0;
@@ -1262,82 +1109,12 @@ public class DBMutation {
 			System.out.println(query);
 			System.out.println();
 		}
-
-		/*
-		//Generator gen = generators.get(table);
-		String query ="";
-		long replaceTime = 0;
-		try {
-			int count = columnsToModify.length;
-			long timeRep = 0;
-			for(int i = 0; i < howMany; ++i){
-				if (!augmenting)
-					query = "UPDATE " + tableToUpdate + " set ";
-				for (Column column : columnsToModify) {
-
-					if (!column.isAutoIncrementing() && !column.isPrimaryKey()) {
-						int columnIndex = columns.indexOf(column);
-						values[i][columnIndex] = generatorController.generateValue(table, column.getName(), false);//checkEscapes(gen.generateValue(column.getName(), false));
-
-						if (!augmenting) {
-							timeRep = System.currentTimeMillis();
-							query += column.getName() + "=";
-							if (values[i][columnIndex].contains("CONVERT") || values[i][columnIndex].equals("null"))
-								query += values[i][columnIndex];
-							else
-								query += "'" + values[i][columnIndex] + "'";
-							query += ",";
-							if (i == 0)
-								count++;
-							replaceTime += System.currentTimeMillis() - timeRep;
-						}
-
-					}
-				}
-
-				if (!augmenting) {
-					timeRep = System.currentTimeMillis();
-					query = query.substring(0, query.length() - 1) + " WHERE ";
-					List<Column> columnsToCycle = graph.getPrimaryKeyNumberInTable(table) == 0 ? columns : graph.getPrimaryKeysInTable(table);
-					for (Column c : columnsToCycle) {
-						int columnIndex = columns.indexOf(c);
-						query += c.getName() + "=";
-						if (values[i][columnIndex].contains("CONVERT") || values[i][columnIndex].equals("null"))
-							query += values[i][columnIndex];
-						else
-							query += "'" + values[i][columnIndex] + "'";
-						query += " AND ";
-					}
-					query = query.substring(0, query.length() - 5);
-					connection.createStatement().executeUpdate(query);
-					replaceTime += System.currentTimeMillis() - timeRep;
-				}
-			}
-
-			long randomTime = System.currentTimeMillis() - time - replaceTime;
-			log.addTimer("random", randomTime);
-			log.addTimer("scramble", 0);
-			log.addTimer("shift", 0);
-			log.mutationPrint("random: " + randomTime + "ms\t" + (howMany * count) + " values (" + howMany + " x " + count + " colonne non chiave)\n");
-			if (augmenting) {
-				insertRecords(table, values, howMany);
-			} else {
-				log.addTimer("replace", replaceTime);
-				log.mutationPrint("Time for replace: " + replaceTime);
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			System.out.println(query);
-			System.out.println();
-		}
-		 */
 	}
 
 	/*Metodo per la modifica: OPERAZIONE
-	 * - chiede all'utente l'operazione aritmetica da eseguire
-	 * - chiede all'utente condizione, che permette di scegliere
-	 *   i record su cui effettuare l'operazione aritmetica
-	 * - effettua l'operazione
+	 * - sceglie casualmente l'operazione da effettuare
+	 * - chiede a GeneratorController i bound per il campo selezionato
+	 * - effettua l'operazione su valori che, applicata la mutazione, non violeranno il bound
 	 */
 	public void randomOperation(Column column, String table) {
 		//Operazioni successive nella stessa esecuzione potrebbero avvenire sugli stessi records
@@ -1546,34 +1323,6 @@ public class DBMutation {
 		return returnVal;
 	}
 
-
-	/*Metodo per riepimento: RANDOM
-	 * - prende un valore random presente nel database (della colonna su cui si sta operando)
-	 * - riempie i blank con quel valore
-	 */
-	public static String getRandomRecordFrom(String column, String table){
-		return "SELECT "+column+ " FROM " + table+ "" +
-				" WHERE "+column+" IS NOT NULL AND " +
-				""+table+"!='' ORDER BY RAND() LIMIT 1";
-	}
-
-
-
-	//Metodo che restituisce la risposta dell'utente (si/no)
-	private static String risposta() {
-		boolean run=true;
-		String input ="";
-		while(run) {
-			input = DBMutation.input.nextLine();
-			if(input.equalsIgnoreCase("si")||input.equalsIgnoreCase("no")) {
-				run=false;
-			}else {
-				System.out.println("Attenzione, inserire si o no.");
-			}
-		}
-		return input;
-	}
-
 	private boolean answer() {
 		boolean run = true;
 		String input ="";
@@ -1703,73 +1452,5 @@ public class DBMutation {
 				}
 			}
 		}
-	}
-	public void addGen(String table) {
-		generatorController.addGenerator(table, DBConnection.getConn());
-	}
-
-	@Deprecated
-	public long searchMin(String table, int howManyPerQ) {
-		System.out.println("Searching...");
-		long totalInsertTime = 0;
-		try {
-			ResultSet rs = null;
-			DBConnection.getConn().createStatement().execute("CREATE TABLE temp" + table + " like "+ table);
-			List<Column> columns = graph.getColumnsInTable(table);
-			String queryFirstPart = createInsertionQuery(columns, null, "temp" + table);
-			queryFirstPart = queryFirstPart.substring(0, queryFirstPart.indexOf("VALUES") + 6);
-			String queryCopy = queryFirstPart;
-
-			rs = DBConnection.getConn().createStatement().executeQuery("SELECT * FROM " + table);
-
-
-			int count = 0;
-			int remaining = graph.getRecordNumberInTable(table);
-			while (rs.next()) {
-				String[] values = new String[columns.size()];
-
-				//Generator gen = generators.get(table);
-
-				//Prende ogni campo e inserisce in un array i suoi valori
-				for(Column c : columns) {
-					int columnIndex = columns.indexOf(c);
-					values[columnIndex] = rs.getString(c.getName());
-
-					if (values[columnIndex] != null)
-						values[columnIndex] = checkEscapes(values[columns.indexOf(c)]);
-					else values[columnIndex] = "null";
-				}
-				queryCopy += "(";
-				for(Column c : columns) {
-					if (!c.isAutoIncrementing()) {
-						if (values[columns.indexOf(c)] == null) values[columns.indexOf(c)] = "null";
-						if (values[columns.indexOf(c)].contains("CONVERT") || values[columns.indexOf(c)].equalsIgnoreCase("null"))
-							queryCopy += values[columns.indexOf(c)] + ",";
-						else
-							queryCopy += "'" + values[columns.indexOf(c)] + "',";
-					}
-				}
-				queryCopy = queryCopy.substring(0, queryCopy.length() - 1) + "),";
-				++count;
-				if (count == howManyPerQ) {
-					queryCopy = queryCopy.substring(0, queryCopy.length() - 1);
-					//System.out.println("copying " + recordsCopied + " records");
-
-					DBConnection.getConn().createStatement().execute(queryCopy);
-
-					queryCopy = queryFirstPart;
-					remaining-=count;
-					if (remaining < howManyPerQ)
-						howManyPerQ = remaining;
-					count = 0;
-				}
-
-
-			}
-			DBConnection.getConn().createStatement().execute("DROP TABLE temp"+table);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return totalInsertTime;
 	}
 }
