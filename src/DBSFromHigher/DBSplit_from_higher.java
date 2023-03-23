@@ -95,9 +95,7 @@ public class DBSplit_from_higher {
 		System.out.println("\nApplying DBSplit...\n");
 
 		try {
-			System.out.println("before");
 			prepareSplit();
-			System.out.println("after");
 		} catch (RuntimeException re) {
 			System.out.println("Split failed for "+DB+", split%:"+percSplit+", overlapping%:"+percOverlapping+".");
 			re.printStackTrace();
@@ -273,7 +271,6 @@ public class DBSplit_from_higher {
 		try {
 			//gets all tables in topological order, explores all from sources to wells
             for (String table : graph.sortTopological()) {
-				System.out.println("inside");
 				startingTime = System.currentTimeMillis();
 				if (!graph.hasProblematicArcs(table))
 					split(table);
@@ -388,13 +385,7 @@ public class DBSplit_from_higher {
         //Computes parameters
         int totalRecords = graph.getRecordNumberInTable(table);
         computeParameters(percent, totalRecords); //computes n, c, u
-
-		if (percentOverlapping > 0)
-			computeOverlapping(percentOverlapping, table);
-		else {
-			c = 0;
-			u = 0;
-		}
+		computeOverlapping(percentOverlapping, table);
 
 		switch (DBMS.toLowerCase()) {
 			case "sqlite" -> {
@@ -687,12 +678,12 @@ public class DBSplit_from_higher {
 									" SELECT *" +
 									" FROM " + DB1 + "." + table +
 									" ORDER BY RAND(" + startingTime + ")" +
-									" LIMIT " + (n+c) + " OFFSET " + c;
+									" LIMIT " + clamp(n+c) + " OFFSET " + c;
                             st.execute(query);
 
 							query = "DELETE FROM " + DB1 + "." + table +
 									" ORDER BY RAND(" + startingTime + ")" +
-									" LIMIT " + (c+n);
+									" LIMIT " + clamp(c+n);
 							st.execute(query);
 						} catch (Exception e) {
 							System.out.println("Split for external node " +table+ " failed : " + e.getMessage());
@@ -761,7 +752,7 @@ public class DBSplit_from_higher {
 										" SELECT *" +
 										" FROM " + DB1 + "." + table +
 											query +
-										" LIMIT " + (c+n) + " OFFSET " + clamp(i-n-c));
+										" LIMIT " + clamp(c+n) + " OFFSET " + clamp(i-n-c));
 							//	Deletes u+n records from DB1; c records will be common
 								st.execute("DELETE FROM " + DB1 + "." + table + query +
 										" LIMIT " + clamp(i-c));
@@ -807,7 +798,7 @@ public class DBSplit_from_higher {
 										" IN (" + printStr(chosenFks.getResult(), 0,
 															chosenFks.getResult().size()) + ")" +
 										" ORDER BY " + fk.getName() +
-										" LIMIT " + (n+c) + " OFFSET " + clamp(chosenFks.sum-c-n) +
+										" LIMIT " + clamp(n+c) + " OFFSET " + clamp(chosenFks.sum-c-n) +
 									") as tempTable";
 							addReferences(table, query, null, new ArrayList<>(), true, DB1);
 
@@ -821,7 +812,7 @@ public class DBSplit_from_higher {
 													printStr(chosenFks.getResult(), 0,
 															chosenFks.getResult().size()) + ")" +
 									" ORDER BY " + fk.getName() +
-									" LIMIT " + (n+c) + " OFFSET " + clamp(chosenFks.sum-c-n);
+									" LIMIT " + clamp(n+c) + " OFFSET " + clamp(chosenFks.sum-c-n);
 							st.execute(query);
 
 							//	Deletes from DB1
@@ -830,68 +821,8 @@ public class DBSplit_from_higher {
 									" IN (" + printStr(chosenFks.getResult(), 0,
 											chosenFks.getResult().size())  + ") " +
 									" ORDER BY " + fk.getName() +
-									" LIMIT "+ clamp(chosenFks.getSum()-c);
+									" LIMIT " + clamp(chosenFks.getSum()-c);
 							st.execute(query);
-
-							///// New method, working directly with queries as to maximize selection
-							/*WITH t as (SELECT * FROM pokemon WHERE id NOT IN (SELECT DISTINCT species FROM team))
-								SELECT t.*
-								FROM t
-								NATURAL JOIN (
-									SELECT count(type1) as count, type1
-									FROM t
-									GROUP BY type1) tabletemp
-								ORDER BY count DESC
-								LIMIT 24, 10
-							ForeignKeyColumn chosenFK = graph.getForeignKeysInTable(table).get(0);
-
-
-							String topQ = "WITH tabel AS (SELECT * FROM " + DB_1 + "." + table;
-
-							Map<String, List<ForeignKeyColumn>> map = graph.getForeignKeysReferringTo(table);
-							int openRecords;
-							if (!map.isEmpty()) {
-								topQ += " WHERE ";
-
-								for (String referredTable : map.keySet()) {
-									for (ForeignKeyColumn foreignKey : map.get(referredTable)) {
-										topQ += foreignKey.getReferredPrimaryKey() + " NOT IN " +
-												"(SELECT DISTINCT " + foreignKey.getName() +
-												" FROM " + DB_1 + "." + referredTable + ") and ";
-									}
-								}
-								topQ = topQ.substring(0, topQ.length() - 5) + ")"; //remove last ' and '
-
-								st = DBConnection.getConn().createStatement();
-								rs = st.executeQuery(topQ + " SELECT COUNT(*) FROM tabel");
-								rs.next();
-								openRecords = rs.getInt(1);
-							} else {
-								topQ += ")";
-								openRecords = graph.getRecordNumberInTable(table);
-							}
-                            openRecords = Math.min(u+c+n, openRecords);
-
-							String bottomQ = "tabel NATURAL JOIN (" +
-									"SELECT count(" + chosenFK.getName() + ") as cuont, " + chosenFK.getName() +
-									" FROM tabel GROUP BY " + chosenFK.getName() + ") tabelTemp" +
-									" ORDER BY cuont DESC";
-
-							addReferences(table, " FROM (SELECT * FROM " + bottomQ +
-									" LIMIT " + (n+c) + " OFFSET " + clamp(openRecords-c-n) + ") tabelTemp2",
-									topQ, new ArrayList<>(), true, DB_1);
-
-							st = DBConnection.getConn().createStatement();
-							query = "INSERT IGNORE INTO " + DB_2 + "." + table + " " +
-									topQ + " SELECT * FROM ( SELECT tabel.* FROM " + bottomQ +
-									") tabelTemp LIMIT " + (n+c) + " OFFSET " + clamp(openRecords-c-n);
-							st.execute(query);
-
-							query = topQ + " DELETE FROM " + DB_1 + "." + table +
-									" WHERE " + getPrimaryKeys(table, true) +
-									" IN (SELECT DISTINCT " + getPrimaryKeys(table, false) +
-									" FROM " + bottomQ + ") LIMIT " + clamp(openRecords-c);
-							st.execute(query);*/
 						} catch (Exception e) {
 							System.out.println("Split for mid/source node " +table+ " failed : " + e.getMessage());
 							System.out.println("\t" + query);
@@ -939,11 +870,38 @@ public class DBSplit_from_higher {
 		u = c;
 		n -= c;
 		m -= c;
+		boolean requiresCheck = (graph.getTableType(table) == Graph.nodeType.mid_node ||
+				graph.getTableType(table) == Graph.nodeType.well);
+
+		if (DBMS.equalsIgnoreCase("mysql") && requiresCheck) {
+			query = "DELETE FROM " + DB1 + "." + table +
+					" WHERE " + getPrimaryKeys(table, true) + " IN " +
+					" (SELECT DISTINCT " + getPrimaryKeys(table, true) +
+					" FROM " + DB2 + "." + table +
+					" WHERE ";
+
+			Map<String, List<ForeignKeyColumn>> map = graph.getForeignKeysReferringTo(table);
+			for (String referringTable : map.keySet()) {
+				for (ForeignKeyColumn foreignKey : map.get(referringTable)) {
+					query += foreignKey.getReferredPrimaryKey() + " NOT IN " +
+							"(SELECT DISTINCT " + foreignKey.getName() +
+							" FROM " + DB1 + "." + referringTable + ") and ";
+				}
+			}
+			query = query.substring(0, query.length() - 5) + ") LIMIT " + n;
+			try {
+				st = DBConnection.getConn().createStatement();
+				st.execute(query);
+
+				n -= st.getUpdateCount();
+			} catch (SQLException e) {
+				System.out.println("Failed preemptive delete for node "+ table + ": " + e.getMessage());
+			}
+		}
 
 		//	If the table is a well or a mid-node, records have already been added (as references to upper tables)
 		//	Considers existing records as already added common records, and removes them from c
-		if (c > 0 && (graph.getTableType(table) == Graph.nodeType.mid_node ||
-				graph.getTableType(table) == Graph.nodeType.well)) {
+		if (c > 0 && requiresCheck) {
 			switch (DBMS.toLowerCase()) {
 				case "mysql" -> {
 					try {

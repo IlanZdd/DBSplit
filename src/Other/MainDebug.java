@@ -72,7 +72,7 @@ public class MainDebug {
                 splitArray = new int[]{60};
                 splitType = "disjoint";
                 overlappingArray = new int[]{30}; //goes to 0 if disjoint
-				executeWhat = 0;
+				executeWhat = 1;
 				run = false;
 
                 switch (DBMS.toLowerCase()) {
@@ -225,7 +225,6 @@ public class MainDebug {
 						long execTime;
 						//esecuzione
 						//0 is yes, 1 is KS, 2 is Baseline
-						//int executeBoth = 1;
 						switch (executeWhat) {
 							case 0 -> {
 								execTime = System.currentTimeMillis();
@@ -237,8 +236,8 @@ public class MainDebug {
 							}
 							case 1 -> {
 								execTime = System.currentTimeMillis();
-								DBSplit_Knapsack.DBSplit(DBMS, sv, user, password, DB, DB1, DB2, percent, splitType, percentOverlapping, graph, true);
-								System.out.println("\tDBSKnapsack completed in " + roundDecimal(((double) System.currentTimeMillis() - execTime) / 1000, 1000) + "s.");
+								DBSplit_from_higher.DBSplit(DBMS, sv, user, password, DB, DB1, DB2, percent, splitType, percentOverlapping, graph, true);
+								System.out.println("\tDBSFromHigher completed in " + roundDecimal(((double) System.currentTimeMillis() - execTime) / 1000, 1000) + "s.");
 							}
 							case 2 -> {
 								execTime = System.currentTimeMillis();
