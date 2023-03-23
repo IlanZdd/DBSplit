@@ -41,10 +41,6 @@ public class DBMutation {
 
 	private final GeneratorController generatorController;
 
-	//TODO effettuare le mutazioni combinate in augmentation
-	//TODO reworkare replaceRecords
-	//TODO Sqlserver e sqlite?
-
 	public DBMutation(String DBMS, String sv, String user, String password, String db) {
 		initPercentages();
 
@@ -52,7 +48,7 @@ public class DBMutation {
 			DBConnection.setConn(DBMS, sv, user, password, db);
 			graph = new Graph(DBMS, DBConnection.getConn(), db);
 
-			validTables = graph.listTables();
+			validTables = new ArrayList(graph.listTables());
 			int i = 0;
 			while(!validTables.isEmpty() && i < validTables.size()) {
 				if (graph.getRecordNumberInTable(validTables.get(i)) == 0 ||
@@ -62,6 +58,7 @@ public class DBMutation {
 			}
 			generatorController = new GeneratorController(db, graph, patternPerc, alterPerc, combinePerc, noMutationPerc, nullablePerc);
 		} catch (Exception e) {
+			e.printStackTrace();
 			throw new RuntimeException(e);
 		}
 	}
@@ -84,7 +81,12 @@ public class DBMutation {
 		boolean run = true;
 		Pattern augmentationCommand = null;
 		Pattern generator = null;
-
+		try {
+			DBConnection.getConn().createStatement().execute("Use " + graph.getName());
+		} catch (SQLException e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
 		while (run) {
 			boolean codeError = false;
 			System.out.println("Comandi:\n" +
@@ -214,7 +216,7 @@ public class DBMutation {
 							while (percCopy > 0) {
 								int copy = Math.min(percCopy, 100);
 								percCopy -= copy;
-								augmentation(percCopy, percMutate);
+								augmentation(copy, percMutate);
 							}
 
 						}
@@ -249,7 +251,6 @@ public class DBMutation {
 		while(risp.equalsIgnoreCase("si")) {
 
 			//Chiede di quale tabella effettuare le mutazioni
-
 			System.out.println("Comandi:\n" +
 					"\tAugmentation <PercentualeAugmentation> <PercentualeMutation>\n\t\t" +
 					"Effettua augmentation del DB del <PercentualeAugmentation>% e di questi\n\t\tne muta <PercentualeMutation>%\n" +
@@ -364,7 +365,6 @@ public class DBMutation {
 	}
 
 	private boolean b = false;
-	private String dbTemp;
 	private String[][] records = null;
 	private int recordsAdded;
 
@@ -379,8 +379,6 @@ public class DBMutation {
 				//System.out.println("updating foreign key values");
 				//generators.get(table).updateForeignValues();
 				int howMany = Math.max(1, percCopy * graph.getRecordNumberInTable(table) / 100);
-				dbTemp = "temp" + table;
-				DBConnection.getConn().createStatement().execute("CREATE TABLE " + dbTemp + " LIKE " + table);
 
 				int howManyToMutate = percMutate * howMany / 100;
 				long time = System.currentTimeMillis();
@@ -407,7 +405,6 @@ public class DBMutation {
 							System.out.println("combining ");
 							if (r.nextInt(100) % 2 == 0) {
 								scrambleRecords(table, records, howManyToMutate);
-
 							} else {
 								shiftRecords(table, records, howManyToMutate);
 							}
@@ -440,8 +437,7 @@ public class DBMutation {
 				} else {
 					generateRandomRecords(table, percCopy);
 				}
-				long augTimer = (System.currentTimeMillis() - time);
-				DBConnection.getConn().createStatement().execute("DROP TABLE IF EXISTS " + dbTemp);
+
 				records = null;
 				recordsAdded = 0;
 			}
@@ -450,12 +446,6 @@ public class DBMutation {
 			System.out.println(query);
 			System.out.println("Errore: " + e.getMessage());
 
-			try {
-				DBConnection.getConn().createStatement().execute("DROP TABLE IF EXISTS " + dbTemp);
-
-			} catch(Exception e2) {
-				e2.printStackTrace();
-			}
 			augmenting = false;
 		}
 		augmenting = false;
@@ -477,7 +467,7 @@ public class DBMutation {
 		List<Column> columns = graph.getColumnsInTable(table);
 
 		int count = 0;
-		String queryFirstPart = createInsertionQuery(columns, null, (b ? dbTemp : table));
+		String queryFirstPart = createInsertionQuery(columns, null, table);
 		queryFirstPart = queryFirstPart.substring(0, queryFirstPart.indexOf("VALUES") + 6);
 		StringBuilder queryCopy = null;
 		String queryTempFirstPart = null;
@@ -547,7 +537,7 @@ public class DBMutation {
 				alreadyGenerated = false;
 				if (randomPk != null) {
 					//TODO togliere la seconda condizione
-					if (!areKeysAlreadyIn(values, table, table) && (bol || !areKeysAlreadyIn(values, table, (b ? dbTemp : table))) && (checkMutated || !areKeysAlreadyIn(values, table, "tempForMutate"))) {
+					if (!areKeysAlreadyIn(values, table, table) && (checkMutated || !areKeysAlreadyIn(values, table, "tempForMutate"))) {
 
 						int columnIndex = columns.indexOf(randomPk);
 						int toMutateStartingIndex = startToSearchFrom;
@@ -749,7 +739,7 @@ public class DBMutation {
 			alreadyGenerated = false;
 			if (randomPk != null) {
 				//TODO togliere la seconda condizione
-				if (!areKeysAlreadyIn(values, table, table) && (bol || !areKeysAlreadyIn(values, table, (b ? dbTemp : table))) && (checkMutated || !areKeysAlreadyIn(values, table, "tempForMutate"))) {
+				if (!areKeysAlreadyIn(values, table, table) && (checkMutated || !areKeysAlreadyIn(values, table, "tempForMutate"))) {
 
 					int columnIndex = columns.indexOf(randomPk);
 					int toMutateStartingIndex = startToSearchFrom;
@@ -935,12 +925,11 @@ public class DBMutation {
 	}
 
 	private void insertRecords(String table, String[][] values, int howMany) {
-		int threshold = insertThreshold;
+		int threshold = Math.min(howMany, insertThreshold);
 		int remaining = howMany;
-		long time = System.currentTimeMillis();
 		String p = table.substring(4);
 		List<Column> columns = graph.getColumnsInTable(table.contains("temp") ? p : table);
-		String startInsertionQuery = createInsertionQuery(columns, null, (b ? dbTemp : table));
+		String startInsertionQuery = createInsertionQuery(columns, null, table);
 		startInsertionQuery = startInsertionQuery.substring(0, startInsertionQuery.indexOf("VALUES") + 6);
 		StringBuilder insertionQuery = new StringBuilder(startInsertionQuery);
 
@@ -965,6 +954,7 @@ public class DBMutation {
 				if (remaining < threshold) threshold = remaining;
 				insertionQuery = new StringBuilder(insertionQuery.substring(0, insertionQuery.length() - 1));
 				try {
+					System.out.println(insertionQuery);
 					DBConnection.getConn().createStatement().execute(insertionQuery.toString());
 					insertionQuery = new StringBuilder(startInsertionQuery);
 				} catch (Exception e) {
@@ -979,7 +969,7 @@ public class DBMutation {
 		String p = table.substring(4);
 		long time = System.currentTimeMillis();
 
-		int threshold = insertThreshold;
+		int threshold = Math.min(howMany, insertThreshold);
 		int remaining = howMany;
 
 
@@ -992,7 +982,7 @@ public class DBMutation {
 			}
 		}
 		if (!allAI) {
-			String startInsertionQuery = createInsertionQuery(columns, null, (b ? dbTemp : table));
+			String startInsertionQuery = createInsertionQuery(columns, null, table);
 			startInsertionQuery = startInsertionQuery.substring(0, startInsertionQuery.indexOf("VALUES") + 6);
 			StringBuilder insertionQuery = new StringBuilder(startInsertionQuery);
 			StringBuilder duplicateUpdate = new StringBuilder("ON DUPLICATE KEY UPDATE ");
@@ -1354,29 +1344,26 @@ public class DBMutation {
 		//Finche si è in una certa istanza di mutation, i lowerbound e upperbound dei campi numerici è sempre lo stesso
 		System.out.println("Quante operazioni vuoi effettuare?");
 		Random r = new Random();
-		int howMany = askHowMany();//r.nextInt(100);
+		int howMany = askHowMany();
 		int h = howMany;
 		char[] operations = {'+', '-'};
 
 		int tried = 0;
 		int success = 0;
 		String pKeys = graph.getPrimaryKeysStringInTable(table, ',', "", "");
-
-		Generator gen = generators.get(table);
-		int ub = gen.getUpperBound(column.getName());
-		char operation = /*operations[input.nextInt()];*/operations[r.nextInt(operations.length)];
-		int bound = gen.getOperationBound(column.getName(), operation);
-		double b = (double) ub / 2;
+		char operation =operations[r.nextInt(operations.length)];
+		long operationBound = generatorController.getOperationBound(table, column.getName(), operation);
+		double randomBound = (double) Math.abs(operationBound)/2;
 		char conditionSign = switch(operation) {
-			case '+', '*' -> '<';
-			case '-', '/' -> '>';
+			case '+' -> '<';
+			case '-' -> '>';
 			default -> throw new IllegalStateException("Unexpected value: " + operation);
 		};
 		try {
 			while (howMany > 0) {
-				double random = r.nextDouble(b);
+				double random = r.nextDouble(randomBound);
 				int n = r.nextInt(howMany) + 1;
-				String cond = column.getName() + operation + random + conditionSign + bound;
+				String cond = column.getName() + operation + random + conditionSign + operationBound;
 				query = "UPDATE " + table + " SET " + column.getName() + "=" + column.getName() + operation + random + " " +
 						"WHERE " + (graph.isPrimaryKeyComposedInTable(table) ? "(" + pKeys + ")" : pKeys) + " IN (" +
 						"SELECT " + pKeys + " FROM ( " +
@@ -1646,7 +1633,7 @@ public class DBMutation {
 	}
 
 	public void initPercentages() {
-		File file = new File("percentages.json");
+		File file = new File("generator_files/percentages.json");
 		if (!file.exists()) {
 			alterPerc = 34;
 			combinePerc = 33;

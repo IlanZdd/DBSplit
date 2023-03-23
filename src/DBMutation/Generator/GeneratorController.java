@@ -38,7 +38,9 @@ public class GeneratorController {
         return value;
     }
 
-
+    public long getOperationBound(String generatorName, String fieldName, char operation) {
+        return generators.get(generatorName).getOperationBound(fieldName, operation);
+    }
     public void updateForeignValues(String generatorName, String fieldName, String value) {
         Column col = graph.searchColumnInTable(fieldName, generatorName);
         //Updates ForeignKeys possible generated values
