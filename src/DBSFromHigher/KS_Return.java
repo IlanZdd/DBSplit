@@ -24,19 +24,19 @@ public class KS_Return {
         addReferencesOnwardIndex = -1;
     }
 
-    public List<String> getResult() {
+    protected List<String> getResult() {
         return result;
     }
 
-    public void setCommons(String commons) {
+    protected void setCommons(String commons) {
         this.commons = commons;
     }
 
-    public void setDeleteDB1(String deleteDB1) {
+    protected void setDeleteDB1(String deleteDB1) {
         this.deleteDB1 = deleteDB1;
     }
 
-    public void setDeleteDB2(String deleteDB2) {
+    protected void setDeleteDB2(String deleteDB2) {
         this.deleteDB2 = deleteDB2;
     }
 

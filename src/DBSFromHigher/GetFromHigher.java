@@ -110,7 +110,7 @@ public class GetFromHigher {
         return Math.max(i, 0);
     }
 
-    public static KS_Return SQLiteMid(String table, List<ForeignKeyColumn> allFKs, int n, int m, int u, int c) {
+    public static KS_Return SQLiteMid(String table, List<ForeignKeyColumn> allFKs, int n, int m, int rR, int c) throws Exception {
         long knapsackTimer = System.currentTimeMillis();
         int fkIndex = 0;
         ForeignKeyColumn fk = null;
@@ -121,131 +121,152 @@ public class GetFromHigher {
 
         try {
             // Gets the unreferenced records from DB1 and DB2, grouped by foreign key, and searches for common ones;
-            fk = allFKs.get(fkIndex);
-            ++fkIndex;
+            fk = allFKs.get(fkIndex++);
 
             Map<String, BeanForSQLite> db1 = new HashMap<>();
             Map<String, BeanForSQLite> db2 = new HashMap<>();
             Map<String, BeanForSQLite> commons = new HashMap<>();
 
-            // Writes the gathering query
+            // Writes the gathering query, that excludes records that are referenced in the DB
             // The query is the same for DB1 and DB2
             query = "SELECT " + fk.getName() + ", rowid FROM " + table + " WHERE ";
 
             Map<String, List<ForeignKeyColumn>> map = graph.getForeignKeysReferringTo(table);
-            if (map.size() > 0) {
-                for (String s : map.keySet()) {
-                    for (ForeignKeyColumn foreignKey : map.get(s)) {
-                        query += foreignKey.getReferredPrimaryKey() + " NOT IN (SELECT DISTINCT " + foreignKey.getName() +
-                                " FROM " + s;
-                        if (fk.isNullable())
-                            query += " and " + fk.getName() + " IS NOT NULL";
-                        query += ") AND ";
-                    }
+            for (String s : map.keySet()) {
+                for (ForeignKeyColumn foreignKey : map.get(s)) {
+                    query += foreignKey.getReferredPrimaryKey() + " NOT IN ( SELECT DISTINCT " + foreignKey.getName() +
+                            " FROM " + s;
+                    if (fk.isNullable())
+                        query += " AND " + fk.getName() + " IS NOT NULL";
+                    query += ") AND ";
                 }
             }
             query = query.substring(0, query.length() - 5) + " GROUP BY " + fk.getName() + ", rowid";
 
+
+            // Query is run on DB1; resulting rowids are stored by foreign key in a map
             DBConnection.closeConn();
-            DBConnection.setConn(DBSplit_from_higher.DBMS, DBSplit_from_higher.sv, DBSplit_from_higher.username, DBSplit_from_higher.password, DBSplit_from_higher.DB1);
+            DBConnection.setConn(
+                    DBSplit_from_higher.DBMS, DBSplit_from_higher.sv,
+                    DBSplit_from_higher.username, DBSplit_from_higher.password,
+                    DBSplit_from_higher.DB1);
             st = DBConnection.getConn().createStatement();
             rs = st.executeQuery(query);
 
-            // Gets all non-referenced foreign keys in DB1
             while (rs.next()){
                 if (!db1.containsKey(rs.getString(1)))
                     db1.put(rs.getString(1), new BeanForSQLite(rs.getString(1)));
                 db1.get(rs.getString(1)).addID(rs.getInt(2));
             }
 
+
+            // Query is run on DB2; resulting rowids are stored by foreign key in a map
+            //   If the rowid is also in DB1 it will be added to a map of commons
             DBConnection.closeConn();
-            DBConnection.setConn(DBSplit_from_higher.DBMS, DBSplit_from_higher.sv, DBSplit_from_higher.username, DBSplit_from_higher.password, DBSplit_from_higher.DB2);
+            DBConnection.setConn(
+                    DBSplit_from_higher.DBMS, DBSplit_from_higher.sv,
+                    DBSplit_from_higher.username, DBSplit_from_higher.password,
+                    DBSplit_from_higher.DB2);
             st = DBConnection.getConn().createStatement();
             rs = st.executeQuery(query);
 
-            // Gets all non-referenced fks in DB2 and puts the common ones in the map
             while (rs.next()){
+                //Adds to common if also in DB1
                 if (db1.containsKey(rs.getString(1)) &&
                         db1.get(rs.getString(1)).containsID(rs.getInt(2))){
                     if (!commons.containsKey(rs.getString(1)))
                         commons.put(rs.getString(1), new BeanForSQLite(rs.getString(1)));
                     commons.get(rs.getString(1)).addID(rs.getInt(2));
                 }
+                //Adds to DB2
                 if (!db2.containsKey(rs.getString(1)))
                     db2.put(rs.getString(1), new BeanForSQLite(rs.getString(1)));
                 db2.get(rs.getString(1)).addID(rs.getInt(2));
             }
 
+            StringBuilder commonFKs = new StringBuilder();
+            StringBuilder deleteNfromDB1 = new StringBuilder();
+            StringBuilder deleteMfromDB2 = new StringBuilder();
+
+            //Sorts the common foreign keys objects by number of records that use it
             List<BeanForSQLite> sortedFks = new ArrayList<>(commons.values());
             Collections.sort(sortedFks);
 
-            String commonFKs = "";
+            // Select n+c records
             int upTo = 0;
-            for (int i = 0; i < sortedFks.size() && upTo < u+c; ++i) {
+            for (int i = 0; i < sortedFks.size() && upTo < rR + c; ++i) {
                 String key = sortedFks.get(i).getForeignKey();
-                commonFKs += DBSplit_from_higher.printStr(sortedFks.get(i).getRowIds(), 0, (u+c) - upTo) + ", ";
+                commonFKs.append(
+                        DBSplit_from_higher.printStr(sortedFks.get(i).getRowIds(), 0, (rR + c) - upTo))
+                        .append(", ");
                 upTo += sortedFks.get(i).size();
-                if (db1.containsKey(key)) {
+
+                if (db1.containsKey(key)) { // Removes from DB1 map, and removes key if empty
                     db1.get(key).removeAll(commons.get(key).getRowIds());
                     if (db1.get(key).size() == 0) db1.remove(key);
                 }
-                if (db2.containsKey(key)) {
+                if (db2.containsKey(key)) { // Removes from DB2 map, and removes key if empty
                     db2.get(key).removeAll(commons.get(key).getRowIds());
                     if (db2.get(key).size() == 0) db2.remove(key);
                 }
             }
 
-            if (commonFKs.length() > 2)
-                commonFKs = commonFKs.substring(0, commonFKs.length()-2);
-
             sortedFks = new ArrayList<>(db1.values());
             Collections.sort(sortedFks);
-            upTo = 0;
 
-            String deleteNfromDB1 = "";
+            // Select n records
+            upTo = 0;
             for (int i = 0; i < sortedFks.size() && upTo < n; ++i) {
                 String key = sortedFks.get(i).getForeignKey();
-                deleteNfromDB1 += DBSplit_from_higher.printStr(sortedFks.get(i).getRowIds(), 0, n - upTo) + ", ";
+                deleteNfromDB1.append(
+                        DBSplit_from_higher.printStr(sortedFks.get(i).getRowIds(), 0, n - upTo))
+                        .append(", ");
                 upTo += sortedFks.get(i).size();
 
-                if (db2.containsKey(key)) {
+                if (db2.containsKey(key)) { // Removes from DB2 map, and removes key if empty
                     db2.get(key).removeAll(db1.get(key).getRowIds());
                     if (db2.get(key).size() == 0) db2.remove(key);
                 }
             }
-            if (deleteNfromDB1.length() > 2)
-                deleteNfromDB1 = deleteNfromDB1.substring(0, deleteNfromDB1.length()-2);
 
             sortedFks = new ArrayList<>(db2.values());
             Collections.sort(sortedFks);
-            upTo = 0;
 
-            String deleteMfromDB2 = "";
+            // Select m records
+            upTo = 0;
             for (int i = 0; i < sortedFks.size() && upTo < m; ++i) {
-                deleteMfromDB2 += DBSplit_from_higher.printStr(sortedFks.get(i).getRowIds(), 0, m - upTo) + ", ";
+                deleteMfromDB2.append(
+                        DBSplit_from_higher.printStr(sortedFks.get(i).getRowIds(), 0, m - upTo))
+                        .append(", ");
                 upTo += sortedFks.get(i).size();
             }
-            if (deleteMfromDB2.length() > 2)
-                deleteMfromDB2 = deleteMfromDB2.substring(0, deleteMfromDB2.length()-2);
 
+            // removes the last ", "
+            if (commonFKs.length() > 2)
+                commonFKs = new StringBuilder(commonFKs.substring(0, commonFKs.length() - 2));
+            if (deleteNfromDB1.length() > 2)
+                deleteNfromDB1 = new StringBuilder(deleteNfromDB1.substring(0, deleteNfromDB1.length() - 2));
+            if (deleteMfromDB2.length() > 2)
+                deleteMfromDB2 = new StringBuilder(deleteMfromDB2.substring(0, deleteMfromDB2.length() - 2));
+
+            // Sets the return value
             returnValue.set(null, fk);
-            returnValue.setCommons(commonFKs);
-            returnValue.setDeleteDB1(deleteNfromDB1);
-            returnValue.setDeleteDB2(deleteMfromDB2);
+            returnValue.setCommons(commonFKs.toString());
+            returnValue.setDeleteDB1(deleteNfromDB1.toString());
+            returnValue.setDeleteDB2(deleteMfromDB2.toString());
 
             if (DBSplit_from_higher.reporting)
                 MainDebug.report.get(table).setAlgorithm_knapsackTime((double)(System.currentTimeMillis()-knapsackTimer)/1000);
 
             return returnValue;
-
         } catch (Exception e) {
-            System.out.println("Error in SQLKnapsack for " + table + " on FK " + fk.getName() + ": " + e.getMessage());
-            System.out.println("\t" + query);
-            e.printStackTrace();
+            System.out.println("Error in SQLite-mid for " + table + " on FK " + fk.getName() + ": " + e.getMessage());
+            //System.out.println("\t" + query);
+            throw e;
         } finally {
             DBConnection.closeSt(st);
             DBConnection.closeRs(rs);
+            DBConnection.closeConn();
         }
-        return returnValue;
     }
 }

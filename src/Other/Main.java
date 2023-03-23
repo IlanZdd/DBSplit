@@ -107,12 +107,14 @@ public class Main {
                         case "ks", "knapsack" -> 1;
                         case "fh", "fromhigher", default -> 2;
                     };
-                //user input
+
+            } else if (args.length > 0) {
+                //TODO not sure if this is a desired output, change it eventually
+                System.out.println("Arguments were detected, but the number is incorrect.");
+                System.exit(1);
+
             } else {
-                if (args.length > 0) {
-                    System.out.println("Arguments were detected, but the number is incorrect.");
-                    System.exit(1);//TODO not sure if thats a desired output, change it eventually
-                }
+                //user input
 
                 System.out.print("Input from keyboard\n\tDBMS: \n\t\t");
                 DBMS = input.nextLine();
@@ -263,7 +265,7 @@ public class Main {
     }
 
     public static boolean retry() {
-        String choice="";
+        String choice;
         do {
             System.out.println("Try again? (yes/no)");
             choice = input.nextLine();

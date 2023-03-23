@@ -9,6 +9,7 @@ import src.DBSKnapsack.DBSplit_Knapsack;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -196,7 +197,11 @@ public class MainDebug {
 					fileName = fileName.replace("\\", "-").replace(".", "_")
 							.replace("/", "-");
 				}
-				graph = new Graph(DBMS, sv, user, password, DB);
+				try {
+					graph = new Graph(DBMS, sv, user, password, DB);
+				} catch (SQLException e) {
+					throw new RuntimeException(e);
+				}
 				for (int i : splitArray) {
 					percent = i;
 
