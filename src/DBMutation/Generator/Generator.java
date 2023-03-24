@@ -29,7 +29,7 @@ public class Generator {
         return table;
     }
    //TODO togliere references a graph e connection
-    public Generator(Graph graph, String table, Connection connection, int pPerc, int aPerc, int cPerc, int noPerc, int nPerc) {
+    public Generator(Graph graph, String table, Connection connection, int pPerc, int aPerc, int cPerc, int noPerc, int nPerc) throws SQLException {
         this.table = table;
 
         if (aPerc+cPerc+noPerc > 100)
@@ -50,8 +50,6 @@ public class Generator {
         fields = new ArrayList<>();
 
         for (Column column : columns) {
-
-            System.out.println(column.getName());
             String query = "";
 
             //Se è una foreignKey crea un ForeignField
@@ -62,47 +60,39 @@ public class Generator {
                     query = "SELECT " + fk.getReferredPrimaryKey() + " " +
                             "FROM " + fk.getReferredTable();
                     ResultSet rs = connection.createStatement().executeQuery(query);
-                    while (rs.next()) {
+                    while (rs.next())
                         list.add(rs.getString(fk.getReferredPrimaryKey()));
-                    }
+
                 } catch (Exception e) {
-                    e.printStackTrace();
-                    System.out.println(column.getDatatype());
-                    System.out.println(query);
-                    list = new ArrayList<>();
+                    System.out.println("There was a problem in getting the values for the foreign key " + column.getName());
+                    if (!column.isNullable() && list.isEmpty()) throw e;
                 }
+
                 fields.add(new ForeignField(fk.getName(), fk.isPrimaryKey(), fk.getReferredTable(), fk.getReferredPrimaryKey(), list));
-            } else if (column.isAutoIncrementing()) {
-                //Se è autoIncrementing allora crea un field generico primarykey con la flag isAutoIncrementing a true
+            } else if (column.isAutoIncrementing())
                 fields.add(new Field(column.getName(), true, true));
-            } else {
+            else {
                 int maxLength = 0;
                 int minLength = Integer.MAX_VALUE;
 
-                //Lista che conterrà tutti i valori del campo
+                //list that contains the field values
                 List<String> list = new ArrayList<>();
-
-                //Query per ottenere tutti i valori del campo presenti nella tabella
-
                 try {
-                    Statement st = connection.createStatement();
+                     Statement st = connection.createStatement();
                      query = "SELECT " + column.getName() + "" +
                             " FROM " + table + "" +
                             " WHERE " + column.getName() + " IS NOT NULL" +
                              (column.getDatatype() == Types.TIMESTAMP || column.getDatatype() == Types.DATE ? "" : " AND "+ column.getName() + "!='';");
                     ResultSet rs = st.executeQuery(query);
-                    while (rs.next()) {
+                    while (rs.next())
                         list.add(rs.getString(column.getName()));
-                    }
 
                 } catch (Exception e) {
-                    e.printStackTrace();
-                    System.out.println(column.getDatatype());
-                    System.out.println(query);
-                    System.exit(1);
+                    System.out.println("There was a problem in getting the values for " + column.getName());
                 }
 
-            /*  Crea una istanza di Field in base al datatype, contando la loro grandezza massima e minima
+            /*
+             Crea una istanza di Field in base al datatype, contando la loro grandezza massima e minima
                     String -> prova a capire dal nome del campo che cos'è. Se non lo capisce gli da come tipo NOTFOUND
                     Numerico -> calcola minimo e massimo dei numeri presenti e conta le sue cifre decimali
                         Il tipo data è compreso in quest'ultimo poiche è rappresentabile come long
@@ -261,23 +251,19 @@ public class Generator {
             }
         }
     }
-
-
     int violateBounds = 0;
 
     public String generateValue(String name, boolean getRandom) throws Exception {
         Field field = getField(name);
 
         if (field == null)
-            throw new IllegalArgumentException(name + " not present in Field list");
+            throw new IllegalArgumentException(name + " not present in field list");
 
         Random r = new Random();
         String generatedValue = "";
-        try {
-            if (field.isAutoIncrementing()) return "AUTO";
-        } catch(Exception e){
-            System.out.println("genereted by " );
-        }
+
+        if (field.isAutoIncrementing()) return "AUTO";
+
         if (!(field instanceof ForeignField)) {
             if (field.isNullable() && r.nextInt(100) < nullablePerc)
                 return "null";
@@ -302,201 +288,185 @@ public class Generator {
                         offset = n.getRangeDim() + 1;
                 }
                 try{
-                switch (n.getDatatype()) {
-                    case Types.INTEGER -> {
-                        int random = r.nextInt((int) n.getLowerBound(), (int) n.getUpperBound()) + offset;
+                    switch (n.getDatatype()) {
+                        case Types.INTEGER -> {
+                            int random = r.nextInt((int) n.getLowerBound(), (int) n.getUpperBound()) + offset;
+                            generatedValue = Integer.toString(random);
+                            return generatedValue;
+                        }
+                        case Types.BIGINT -> {
+                            long random = r.nextLong(n.getLowerBound(), n.getUpperBound()) + offset;
+                            generatedValue = Long.toString(random);
+                            return generatedValue;
+                        }
 
-                        generatedValue = Integer.toString(random);
-                        return generatedValue;
-                    }
-                    case Types.BIGINT -> {
-                        long random = r.nextLong(n.getLowerBound(), n.getUpperBound()) + offset;
-                        generatedValue = Long.toString(random);
-                        return generatedValue;
-                    }
+                        case Types.FLOAT, Types.REAL -> {
+                            float random = Generator.roundFloat(r.nextFloat(n.getLowerBound(), n.getUpperBound()) + offset, n.getDecimalLength());
 
-                    case Types.FLOAT, Types.REAL -> {
-                        float random = Generator.roundFloat(r.nextFloat(n.getLowerBound(), n.getUpperBound()) + offset, n.getDecimalLength());
-
-                        generatedValue = Float.toString(random);
-                        return generatedValue;
+                            generatedValue = Float.toString(random);
+                            return generatedValue;
+                        }
+                        case Types.DOUBLE -> {
+                            double random = Generator.roundDouble(r.nextDouble(n.getLowerBound(), n.getUpperBound()) + offset, n.getDecimalLength());
+                            generatedValue = Double.toString(random);
+                            return generatedValue;
+                        }
+                        case Types.DATE -> {
+                            java.sql.Date random = new java.sql.Date(r.nextLong(n.getLowerBound(), n.getUpperBound()) + offset);
+                            generatedValue = "CONVERT(\"" + random.toString() + "\", DATE)";
+                            return generatedValue;
+                        }
+                        case Types.DECIMAL -> {
+                            BigDecimal bd = BigDecimal.valueOf(r.nextDouble(n.getLowerBound(), n.getUpperBound()) + offset);
+                            bd = bd.setScale(n.getDecimalLength(), RoundingMode.HALF_UP);
+                            generatedValue = bd.toString();
+                            return generatedValue;
+                        }
+                        case Types.TIMESTAMP -> {
+                            Timestamp random = new Timestamp(r.nextLong(n.getLowerBound(), n.getUpperBound()) + offset);
+                            generatedValue ="CONVERT(\""+ random.toString() + "\", DATETIME)";
+                            return generatedValue;
+                        }
+                        case Types.TIME -> {
+                            Time random = new Time(r.nextLong(n.getLowerBound(), n.getUpperBound()) + offset);
+                            generatedValue = "CONVERT(\"" + random.toString() + "\", TIME)";
+                            return generatedValue;
+                        }
+                        case Types.TINYINT, Types.SMALLINT -> {
+                            short random = (short) (r.nextInt((int) n.getLowerBound(), (int) n.getUpperBound()) + offset);
+                            generatedValue = Short.toString(random);
+                            return generatedValue;
+                        }
+                        case Types.BIT -> {
+                            //Il bit è escluso dalla possibilità di valori fuori bound perche sql darebbe sicuramente errore
+                            int random = r.nextInt() % 2;
+                            generatedValue = random + "";
+                            return generatedValue;
+                        }
+                        default -> throw new IllegalStateException("Numerical type not handled, technically unreachable");
                     }
-                    case Types.DOUBLE -> {
-                        double random = Generator.roundDouble(r.nextDouble(n.getLowerBound(), n.getUpperBound()) + offset, n.getDecimalLength());
-                        generatedValue = Double.toString(random);
-                        return generatedValue;
-                    }
-                    case Types.DATE -> {
-                        java.sql.Date random = new java.sql.Date(r.nextLong(n.getLowerBound(), n.getUpperBound()) + offset);
-                        generatedValue = "CONVERT(\"" + random.toString() + "\", DATE)";
-                        return generatedValue;
-                    }
-                    case Types.DECIMAL -> {
-                        BigDecimal bd = BigDecimal.valueOf(r.nextDouble(n.getLowerBound(), n.getUpperBound()) + offset);
-                        bd = bd.setScale(n.getDecimalLength(), RoundingMode.HALF_UP);
-                        generatedValue = bd.toString();
-                        return generatedValue;
-                    }
-                    case Types.TIMESTAMP -> {
-                        Timestamp random = new Timestamp(r.nextLong(n.getLowerBound(), n.getUpperBound()) + offset);
-                        generatedValue ="CONVERT(\""+ random.toString() + "\", DATETIME)";
-                        return generatedValue;
-                    }
-                    case Types.TIME -> {
-                        Time random = new Time(r.nextLong(n.getLowerBound(), n.getUpperBound()) + offset);
-                        generatedValue = "CONVERT(\"" + random.toString() + "\", TIME)";
-                        return generatedValue;
-                    }
-                    case Types.TINYINT, Types.SMALLINT -> {
-                        short random = (short) (r.nextInt((int) n.getLowerBound(), (int) n.getUpperBound()) + offset);
-                        generatedValue = Short.toString(random);
-                        return generatedValue;
-                    }
-                    case Types.BIT -> {
-                        //Il bit è escluso dalla possibilità di valori fuori bound perche sql darebbe sicuramente errore
-                        int random = r.nextInt() % 2;
-                        generatedValue = random + "";
-                        return generatedValue;
-                    }
-                    default -> throw new IllegalStateException("Numerical type forgotten my bad");
-                }
-            } catch(Exception e) {
-                    System.out.println("Error caused by " + n.toString());
+                } catch(Exception e) {
                     throw e;
                 }
             }
 
             StringField s = (StringField) field;
-            try {
-               /*
-                    Tries to select null or empty for a values types that are not handled
+
+           /*
+                Tries to select null or empty for a values types that are not handled
+            */
+            if(s.getType() == Type.NOTFOUND) {
+                if (s.isNullable())
+                    return "null";
+                else
+                    return "";
+            }
+
+            String s1 = "";
+            String s2 = ""; //Second value for combine mutation if needed
+            int prob = r.nextInt(100);
+            boolean whatMutation = true;
+            int howMany = 0;
+            if (s.getLength() > 3){
+                whatMutation = (prob < alterPerc || (prob >= combinePerc && prob < noMutationPerc));
+
+                if (whatMutation)
+                    //Happened alterPercentage or noMutationPercentage
+                    howMany = 1;
+                else
+                    //Happened combinePerc
+                    howMany = 2;
+            } else
+                //The string can't be long enough to be combined
+                howMany = 1;
+
+
+            if (s.getTotalValues() == 0) {
+                if (s.getType() != Type.OTHER && r.nextInt() < 50)
+                    //TODO controllare la possibilità che generatorStorage si blocchi
+                    s1 = GeneratorStorage.getValue(s);
+                else
+                    s1 = getRandomlyGeneratedValue(s);
+                if (!whatMutation) {
+                    do {
+                        if (s.getType() != Type.OTHER && r.nextInt() < 50)
+                            s2 = GeneratorStorage.getValue(s);
+                        else
+                            s2 = getRandomlyGeneratedValue(s);
+                    } while (s2.equals(s1));
+                }
+            } else if (getRandom)
+                getRandomlyGeneratedValue(s);
+            else {
+                /*
+                    Gets the values it needs in various ways:
+                        -Pattern
+                        -From existing values
+                        -GeneratorStorage if possible
                 */
-                if(s.getType() == Type.NOTFOUND) {
-                    if (s.isNullable())
-                        return "null";
-                    else
-                        return "";
+                if (patternPerc > 0 && s.hasPatterns()) {
+                    int patternProbs1 = r.nextInt(100);
+                    if (patternProbs1 < patternPerc) {
+                        Pattern p = s.getAPattern();
+                        RgxGen regGens1 = new RgxGen(p.pattern());
+                        do {
+                            s1 = regGens1.generate();
+                        } while(s1.length() > s.getLength() || s1.length() < s.getMinLength());
+                        //System.out.println("Generated s1: " + s1 + " from pattern: " + p.pattern());
+                        --howMany;
+                    }
+                    if (!whatMutation){
+                        int patternProbs2 = r.nextInt(100);
+                        if (patternProbs2 < patternPerc) {
+                            Pattern p = s.getAPattern();
+                            RgxGen regGens2 = new RgxGen(p.pattern());
+                            do {
+                                s2 = regGens2.generate();
+                            } while(s2.length() > s.getLength() || s2.length() < s.getMinLength());
+                            //System.out.println("Generated s2: " + s2 + " from pattern: " + p.pattern());
+                            --howMany;
+                        }
+                    }
                 }
 
-                String s1 = "";
-                String s2 = ""; //Second value for combine mutation if needed
-                int prob = r.nextInt(100);
-                boolean whatMutation = true;
-                int howMany = 0;
-                if (s.getLength() > 3){
-                    whatMutation = (prob < alterPerc || (prob >= combinePerc && prob < noMutationPerc));
 
-                    if (whatMutation)
-                        //Happened alterPercentage or noMutationPercentage
-                        howMany = 1;
-                    else
-                        //Happened combinePerc
-                        howMany = 2;
-                } else
-                    //The string can't be long enough to be combined
-                    howMany = 1;
-
-
-                if (s.getTotalValues() == 0) {
-                    if (s.getType() != Type.OTHER && r.nextInt() < 50)
-                        //TODO controllare la possibilità che generatorStorage si blocchi
-                        s1 = GeneratorStorage.getValue(s);
-                    else
-                        s1 = getRandomlyGeneratedValue(s);
-                    if (!whatMutation) {
+                if (howMany > 0) {
+                    /*if it still needs values it didnt generate from patterns
+                         -From existing values
+                         -GeneratorStorage if possible
+                    */
+                    if (s1.isEmpty()) {
+                        if (s.getType() != Type.OTHER && r.nextInt() < 50)
+                            s1 = GeneratorStorage.getValue(s);
+                        else
+                            s1 = s.getRandomValue();
+                    } else {
                         do {
                             if (s.getType() != Type.OTHER && r.nextInt() < 50)
                                 s2 = GeneratorStorage.getValue(s);
                             else
-                                s2 = getRandomlyGeneratedValue(s);
-                        } while (s2.equals(s1));
+                                s2 = s.getRandomValue();
+                        } while(s1.equals(s2));
                     }
-                } else if (getRandom)
-                    getRandomlyGeneratedValue(s);
-                else {
-                    /*
-                        Gets the values it needs in various ways:
-                            -Pattern
-                            -From existing values
-                            -GeneratorStorage if possible
-                    */
-                    if (patternPerc > 0 && s.hasPatterns()) {
-                        int patternProbs1 = r.nextInt(100);
-                        if (patternProbs1 < patternPerc) {
-                            Pattern p = s.getAPattern();
-                            RgxGen regGens1 = new RgxGen(p.pattern());
-                            do {
-                                s1 = regGens1.generate();
-                            } while(s1.length() > s.getLength() || s1.length() < s.getMinLength());
-                            //System.out.println("Generated s1: " + s1 + " from pattern: " + p.pattern());
-                            --howMany;
-                        }
-                        if (!whatMutation){
-                            int patternProbs2 = r.nextInt(100);
-                            if (patternProbs2 < patternPerc) {
-                                Pattern p = s.getAPattern();
-                                RgxGen regGens2 = new RgxGen(p.pattern());
-                                do {
-                                    s2 = regGens2.generate();
-                                } while(s2.length() > s.getLength() || s2.length() < s.getMinLength());
-                                //System.out.println("Generated s2: " + s2 + " from pattern: " + p.pattern());
-                                --howMany;
-                            }
-                        }
-                    }
-
-
-                    if (howMany > 0) {
-                        /*if it still needs values it didnt generate from patterns
-                             -From existing values
-                             -GeneratorStorage if possible
-                        */
-                        if (s1.isEmpty()) {
-                            if (s.getType() != Type.OTHER && r.nextInt() < 50)
-                                s1 = GeneratorStorage.getValue(s);
-                            else
-                                s1 = s.getRandomValue();
-                        } else {
-                            do {
-                                if (s.getType() != Type.OTHER && r.nextInt() < 50)
-                                    s2 = GeneratorStorage.getValue(s);
-                                else
-                                    s2 = s.getRandomValue();
-                            } while(s1.equals(s2));
-                        }
-
-                        if (s2.isEmpty())
-                            s2 = s.getRandomValue();
-
-                    }
+                    if (s2.isEmpty())
+                        s2 = s.getRandomValue();
                 }
-
-                if (whatMutation) {
-                    //Forces Altering mutation if its a primary key, to avoid duplicates
-                    if (prob < alterPerc || s.isPrimaryKey())
-                        generatedValue = generateAlteredValue(s, s1);
-                    else
-                        generatedValue = s1;
-                } else
-                    generatedValue = generateCombinedValue(s1, s2);
-                s.addNewValue(generatedValue);
-
-                if (generatedValue.length() > s.getColumnSize()) {
-                    System.out.println("Error: ");
-                    System.out.println("Generated value: " + generatedValue);
-                    System.out.println("Random: " + getRandom);
-                    System.out.println("Mutation: " + whatMutation);
-                    System.out.println("prob: " + prob);
-                    System.out.println("s1: " + s1);
-                    System.out.println("s2: " + s2);
-                    throw new IllegalStateException("Out of column size value generated");
-                }
-                return generatedValue;
-            } catch(Exception e){
-                e.printStackTrace();
-                System.out.println("Generated by: " + s.toString());
-                throw e;
             }
+
+            if (whatMutation) {
+                //Forces Altering mutation if its a primary key, to avoid duplicates
+                if (prob < alterPerc || s.isPrimaryKey())
+                    generatedValue = generateAlteredValue(s, s1);
+                else
+                    generatedValue = s1;
+            } else
+                generatedValue = generateCombinedValue(s1, s2);
+            s.addNewValue(generatedValue);
+
+            if (generatedValue.length() > s.getColumnSize())
+                throw new IllegalStateException("Out of column size value generated");
+
+            return generatedValue;
         }
 
         generatedValue = ((ForeignField) field).getRandomForeignValue();
@@ -538,23 +508,13 @@ public class Generator {
     public static String generateAlteredValue(StringField field, String value) {
         Random r = new Random();
         int howMany = 0;
-        try {
-            if (value.length() == 1) howMany = 1;
-            else if (field.getMinLength() == value.length())
-                howMany = r.nextInt(0, value.length() / 2) + 1;
-            else
-                howMany = r.nextInt(field.getMinLength() / 2, (int) Math.ceil((double) value.length() / 2)) + 1;
-        } catch(Exception e) {
-            e.printStackTrace();
 
-            System.out.println(field.toString());
-            System.out.println("in random: " +field.getMinLength() / 2 + "; " + (int) Math.ceil((double) value.length() / 2));
-            System.out.println("normal: " + field.getMinLength() + "; " + value.length());
+        if (value.length() == 1) howMany = 1;
+        else if (field.getMinLength() == value.length())
+            howMany = r.nextInt(0, value.length() / 2) + 1;
+        else
+            howMany = r.nextInt(field.getMinLength() / 2, (int) Math.ceil((double) value.length() / 2)) + 1;
 
-            System.exit(1);
-        }
-        //System.out.println("altering " + howMany + " characters");
-        //System.out.print("altered " + value + " in ");
         List<Integer> altered = new ArrayList<>();
 
 
@@ -574,12 +534,9 @@ public class Generator {
              else
                 character = Generator.getRandomLetterAs(present);
 
-
-
             value = value.substring(0, position) + character + value.substring(position + 1);
             altered.add(position);
         }
-        //System.out.print(value + "\n");
         return value;
     }
 

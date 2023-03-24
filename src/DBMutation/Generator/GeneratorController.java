@@ -25,10 +25,11 @@ public class GeneratorController {
         GeneratorStorage.initialize();
     }
 
-    public void addGenerator(String table, Connection connection) {
-
-        Generator generator = new Generator(graph, table, connection, patternPerc, alterPerc, combinePerc, noMutationPerc, nullablePerc);
-        generators.put(table, generator);
+    public void addGenerator(String table, Connection connection) throws Exception{
+        if (!generators.containsKey(table)) {
+            Generator generator = new Generator(graph, table, connection, patternPerc, alterPerc, combinePerc, noMutationPerc, nullablePerc);
+            generators.put(table, generator);
+        }
     }
 
     public String generateValue(String generatorName, String fieldName, boolean getRandom) throws Exception {
