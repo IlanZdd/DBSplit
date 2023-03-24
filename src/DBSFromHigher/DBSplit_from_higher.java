@@ -224,7 +224,7 @@ public class DBSplit_from_higher {
                     }
 					for (String t : graph.listProblematicTables()) {
 						copyTableContent(t, t, DB2);
-						addReferences(t, " from " + originalDB + "." + t, null, new ArrayList<>(), true, originalDB);
+						addReferences(t, " from " + originalDB + "." + t, new ArrayList<>(), true, originalDB);
 					}
 
 					//adds fks
@@ -257,6 +257,7 @@ public class DBSplit_from_higher {
 					System.out.println("\t"+query);
                     return false;
                 } finally {
+					DBConnection.closeSt(st);
 					query = "";
 				}
             default:
@@ -267,21 +268,17 @@ public class DBSplit_from_higher {
 	/** Evokes split function on each table.
 	 */
 	public static void prepareSplit() throws Exception {
-		try {
-			//gets all tables in topological order, explores all from sources to wells
-			for (String table : graph.sortTopological()) {
-				startingTime = System.currentTimeMillis();
+		//gets all tables in topological order, explores all from sources to wells
+		for (String table : graph.sortTopological()) {
+			startingTime = System.currentTimeMillis();
 
-				if (!graph.hasProblematicArcs(table))
-					split(table);
+			if (!graph.hasProblematicArcs(table))
+				split(table);
 
-				numTables++;
-				time = time + getTime();
+			numTables++;
+			time = time + getTime();
 
-				if (reporting) MainDebug.report.get(table).setAlgorithm_runningTime(getNowTime());
-			}
-		} catch (Exception e) {
-			throw e;
+			if (reporting) MainDebug.report.get(table).setAlgorithm_runningTime(getNowTime());
 		}
 
 		//if report is active, gets information about the tables
@@ -402,7 +399,7 @@ public class DBSplit_from_higher {
 						try {
 							//EXECUTION FOR EXTERNAL NODE:
 							//	Deletes u+c records from DB1 and u+m from DB2
-							//	Records are ordered as ucnm
+							//	Records are ordered as rR c n m
 							List<Integer> rowids = getAllRowID_SQLite(DB1, table);
 
 							DBConnection.closeConn();
@@ -469,8 +466,8 @@ public class DBSplit_from_higher {
 							}
 
 							String lostRowids = "";
-							String deleteNfromDB1 = "";
-							String deleteMfromDB2 = "";
+							String deleteNFromDB1 = "";
+							String deleteMFromDB2 = "";
 							int i = 0;
 
 							// Records in common will not be deleted
@@ -492,21 +489,21 @@ public class DBSplit_from_higher {
 
 							// n records will be deleted from DB1
 							for (i = 0; i < n && i < rowidsDB1.size(); ++i) {
-								deleteNfromDB1 += rowidsDB1.get(i) + ", ";
+								deleteNFromDB1 += rowidsDB1.get(i) + ", ";
 
 								rowidsDB2.remove(rowidsDB1.get(i));
 							}
-							if (deleteNfromDB1.length()>2)
-								deleteNfromDB1 = deleteNfromDB1.substring(0,
-												 deleteNfromDB1.length() - 2);
+							if (deleteNFromDB1.length()>2)
+								deleteNFromDB1 = deleteNFromDB1.substring(0,
+												 deleteNFromDB1.length() - 2);
 
 							// m records will be deleted from DB2
 							for (i = 0; i < m  && i < rowidsDB2.size(); ++i) {
-								deleteMfromDB2 += rowidsDB2.get(i) + ", ";
+								deleteMFromDB2 += rowidsDB2.get(i) + ", ";
 							}
-							if (deleteMfromDB2.length()>2)
-								deleteMfromDB2 = deleteMfromDB2.substring(0,
-												 deleteMfromDB2.length() - 2);
+							if (deleteMFromDB2.length()>2)
+								deleteMFromDB2 = deleteMFromDB2.substring(0,
+												 deleteMFromDB2.length() - 2);
 
 							DBConnection.closeConn();
 							DBConnection.setConn(DBMS, sv, username, password, DB2);
@@ -517,9 +514,9 @@ public class DBSplit_from_higher {
 									" WHERE rowid IN ( SELECT rowid FROM " + table +
 									" WHERE rowid IN (" + lostRowids;
 							if (!lostRowids.isEmpty() &&
-									!deleteMfromDB2.isEmpty())
+									!deleteMFromDB2.isEmpty())
 								query += ", ";
-							query += deleteMfromDB2 + ")" +
+							query += deleteMFromDB2 + ")" +
 									" LIMIT " + (rR + m) + ")";
 							st.execute(query);
 
@@ -532,9 +529,9 @@ public class DBSplit_from_higher {
 									" WHERE rowid IN ( SELECT rowid FROM " + table +
 									" WHERE rowid IN (" + lostRowids;
 							if (!lostRowids.isEmpty() &&
-									!deleteNfromDB1.isEmpty())
+									!deleteNFromDB1.isEmpty())
 								query += ", ";
-							query += deleteNfromDB1 +")" +
+							query += deleteNFromDB1 +")" +
 									" LIMIT " + (rR + n) + ")";
 							st.execute(query);
 						}  catch (Exception e) {
@@ -551,48 +548,60 @@ public class DBSplit_from_higher {
 					case mid_node -> {
 						try {
 							KS_Return chosenFks = GetFromHigher.SQLiteMid(table, graph.getForeignKeysInTable(table), n, m, rR, c);
+
 							DBConnection.closeConn();
 							DBConnection.setConn(DBMS, sv, username, password, DB2);
 							st = DBConnection.getConn().createStatement();
 
-							//tolgo u da db2
-							query = "DELETE FROM " + table +
-									" WHERE rowid IN (" +
-									"SELECT rowid FROM " + table +
-									" WHERE rowid IN (" +
-									chosenFks.commons + ")" +
-									" LIMIT " + rR + ")";
-							st.execute(query);
+							// Removes rR records from DB2
+							if (!chosenFks.getCommons().isEmpty()) {
+								query = "DELETE FROM " + table +
+										" WHERE rowid IN (" +
+										"SELECT rowid FROM " + table +
+										" WHERE rowid IN (" +
+										chosenFks.getCommons() + ")" +
+										" LIMIT " + rR + ")";
 
-							//tolgo m da db2
-							query = "DELETE FROM " + table +
-									" WHERE rowid IN (" +
-									"SELECT rowid FROM " + table +
-									" WHERE rowid IN (" +
-									chosenFks.deleteDB2 + ")" +
-									" LIMIT " + m + ")";
+								st.execute(query);
+							}
 
-							st.execute(query);
+							//Removes m records from DB2
+							if (!chosenFks.getDeleteDB2().isEmpty()) {
+								query = "DELETE FROM " + table +
+										" WHERE rowid IN (" +
+										"SELECT rowid FROM " + table +
+										" WHERE rowid IN (" +
+										chosenFks.getDeleteDB2() + ")" +
+										" LIMIT " + m + ")";
+
+								st.execute(query);
+							}
 
 							DBConnection.closeConn();
 							DBConnection.setConn(DBMS, sv, username, password, DB1);
 							st = DBConnection.getConn().createStatement();
-							//tolgo u da db1
-							query = "DELETE FROM " + table +
-									" WHERE rowid IN (" +
-									"SELECT rowid FROM " + table +
-									" WHERE rowid IN (" +
-									chosenFks.commons + ")" +
-									" LIMIT " + rR + ")";
-							st.execute(query);
-							//tolgo n da db1
-							query = "DELETE FROM " + table +
-									" WHERE rowid IN (" +
-									"SELECT rowid FROM " + table +
-									" WHERE rowid IN (" +
-									chosenFks.deleteDB1 + ")" +
-									" LIMIT " + n + ")";
-							st.execute(query);
+
+							// Removes rR records from DB2
+							if (!chosenFks.getCommons().isEmpty()) {
+								query = "DELETE FROM " + table +
+										" WHERE rowid IN (" +
+										"SELECT rowid FROM " + table +
+										" WHERE rowid IN (" +
+										chosenFks.getCommons() + ")" +
+										" LIMIT " + rR + ")";
+								st.execute(query);
+							}
+
+							//Removes m records from DB2
+							if (!chosenFks.getDeleteDB1().isEmpty()) {
+								query = "DELETE FROM " + table +
+										" WHERE rowid IN (" +
+										"SELECT rowid FROM " + table +
+										" WHERE rowid IN (" +
+										chosenFks.getDeleteDB1() + ")" +
+										" LIMIT " + n + ")";
+								st.execute(query);
+							}
 						} catch (Exception e) {
 							System.out.println("Split for mid node " +table+ " failed : " + e.getMessage());
 							//System.out.println("\t" + query);
@@ -606,40 +615,39 @@ public class DBSplit_from_higher {
 					}
 					case source -> {
 						try {
-							//EXECUTION FOR SOURCE NODES
-							//	Knapsack searches for a FK valid enough (tries to reach u+c+n value, tries to avoid single count FKs
-							//		For mids, avoids Fks present in records that are referred by upper tables
 							DBConnection.closeConn();
 							DBConnection.setConn(DBMS, sv, username, password, DB1);
-							KS_Return chosenFks = GetFromHigher.MySqlAndSources(table, graph.getForeignKeysInTable(table),
-									rR, c, n);
+							KS_Return chosenFks = GetFromHigher.MySqlAndSources(
+									table, graph.getForeignKeysInTable(table), rR, c, n);
 
 							ForeignKeyColumn fk = chosenFks.getFk();
-							//	Changes the total of found records, I don't care how many I have actually found,
-							//		I don't need all of them
-							chosenFks.setSum(Math.min(chosenFks.getSum(), rR +n+c));
+							chosenFks.setSum(Math.min(chosenFks.getSum(), rR + n + c));
 
 							DBConnection.closeConn();
 							DBConnection.setConn(DBMS, sv, username, password, DB1);
 							st = DBConnection.getConn().createStatement();
-							//tolgo u, n da db1
+
+							// Removes rR + n records from DB1
 							query = "DELETE FROM " + table +
 									" WHERE rowid IN (" +
 									"SELECT rowid FROM " + table +
 									" WHERE " +  fk.getName() + " IN (" +
 									printStr(chosenFks.getResult(), 0, chosenFks.getResult().size()) + ")" +
+									" ORDER BY " + fk.getName() +
 									" LIMIT " + (rR +n) + " OFFSET " + c + ")";
 							st.execute(query);
 
 							DBConnection.closeConn();
 							DBConnection.setConn(DBMS, sv, username, password, DB2);
 							st = DBConnection.getConn().createStatement();
-							//tolgo u, m da db2
+
+							// Removes rR records from DB2, then m records from those that were referred in DB1
 							query = "DELETE FROM " + table +
 									" WHERE rowid IN (" +
 									"SELECT rowid FROM " + table +
 									" WHERE " +  fk.getName() + " IN (" +
 									printStr(chosenFks.getResult(), 0, chosenFks.getResult().size()) + ")" +
+									" ORDER BY " + fk.getName() +
 									" LIMIT " + rR + " OFFSET " + (n+c) + ")";
 							st.execute(query);
 							query = "DELETE FROM " + table +
@@ -647,6 +655,7 @@ public class DBSplit_from_higher {
 									"SELECT rowid FROM " + table +
 									" WHERE " +  fk.getName() + " NOT IN (" +
 									printStr(chosenFks.getResult(), 0, chosenFks.getResult().size()) + ")" +
+									" ORDER BY " + fk.getName() +
 									" LIMIT " + m + ")";
 							st.execute(query);
 						} catch (Exception e) {
@@ -667,11 +676,11 @@ public class DBSplit_from_higher {
 					case external_node -> {
 						try {
 							//EXECUTION FOR EXTERNAL NODE:
-							// c is equal to u
+							// c is equal to rR
 							// Selects n+c records after u records from DB1 and
 							//		copies them into DB2
 							// Deletes c+n records from DB1, leaving the last c+m records
-							// First u records are lost, n records are in DB2,
+							// First rR records are lost, n records are in DB2,
 							//		c records are in common, m records are in DB1
 							st = DBConnection.getConn().createStatement();
 
@@ -770,7 +779,7 @@ public class DBSplit_from_higher {
 					}
 					case mid_node, source -> {
 						try {
-							//EXECUTION FOR MID NODES (mids) AND SOURCE NODES
+							//EXECUTION FOR MID NODES (mid) AND SOURCE NODES
 							// Foreign keys are selected (from non-referenced records, if the table is a mid-node)
 							//		to gather at least u+c+n records
 							// If the result set is empty, nothing can be done; else updates the values it needs
@@ -796,9 +805,9 @@ public class DBSplit_from_higher {
 										" IN (" + printStr(chosenFks.getResult(), 0,
 															chosenFks.getResult().size()) + ")" +
 										" ORDER BY " + fk.getName() +
-										" LIMIT " + clamp(n+c) + " OFFSET " + clamp(chosenFks.sum-c-n) +
+										" LIMIT " + clamp(n+c) + " OFFSET " + clamp(chosenFks.getSum()-c-n) +
 									") as tempTable";
-							addReferences(table, query, null, new ArrayList<>(), true, DB1);
+							addReferences(table, query, new ArrayList<>(), true, DB1);
 
                             st = DBConnection.getConn().createStatement();
 
@@ -810,7 +819,7 @@ public class DBSplit_from_higher {
 													printStr(chosenFks.getResult(), 0,
 															chosenFks.getResult().size()) + ")" +
 									" ORDER BY " + fk.getName() +
-									" LIMIT " + clamp(n+c) + " OFFSET " + clamp(chosenFks.sum-c-n);
+									" LIMIT " + clamp(n+c) + " OFFSET " + clamp(chosenFks.getSum()-c-n);
 							st.execute(query);
 
 							//	Deletes from DB1
@@ -840,7 +849,7 @@ public class DBSplit_from_higher {
 
 	/** Gets rowid from a given table in a given DB
 	 * @param DB Database
-	 * @param table tabel name
+	 * @param table table name
 	 * @return List of row id for table in database
 	 */
 	private static List<Integer> getAllRowID_SQLite(String DB, String table) throws Exception {
@@ -967,10 +976,10 @@ public class DBSplit_from_higher {
 		// from types
 		// where rowid not in
 		// 	(select distinct rowid from types where
-		//		name in (select distinct type1 from pokemon) and
+		//		name in (select distinct type1 from Pokémon) and
 		// rowid not in
 		// (select distinct rowid from types where
-		//		name in (select distinct this_type from isnt_effective)
+		//		name in (select distinct this_type from isn't_effective)
 		String query = "";
 		Map<String, List<ForeignKeyColumn>> map = DBSplit_from_higher.graph.getForeignKeysReferringTo(table);
 		if (map.size() > 0) {
@@ -1006,13 +1015,12 @@ public class DBSplit_from_higher {
 	 * infinite cycles
 	 *
 	 * @param table       table being explored in this call
-	 * @param bottomQuery query being constructed for this tree
-	 * @param withQuery
+	 * @param currentQuery query being constructed for this tree
 	 * @param copyFromDB  Database from which to copy
 	 */
-	private static void addReferences(String table, String bottomQuery, String withQuery, List<String> addedRefs,
+	private static void addReferences(String table, String currentQuery, List<String> addedRefs,
 									  boolean first, String copyFromDB) {
-		//TODO if table is full do nothing
+		//TODO if table is full do nothing?
         addedRefs.add(table);
 
         if (graph.isTableReferring(table)) {
@@ -1020,26 +1028,26 @@ public class DBSplit_from_higher {
 			for (ForeignKeyColumn s: graph.getForeignKeysInTable(table)) {
                 if (!addedRefs.contains(s.getReferredTable()) &&
 						!graph.hasProblematicArcs(s.getReferredTable())) {
-                    String query = " FROM " + copyFromDB + "." + s.getReferredTable() +
+                    String buildingQuery = " FROM " + copyFromDB + "." + s.getReferredTable() +
                             " WHERE " + s.getReferredPrimaryKey() + " IN" +
-                            " (SELECT DISTINCT " + s.getName() + bottomQuery + ")";
-                    addReferences(s.getReferredTable(), query, withQuery, addedRefs, false, copyFromDB);
+                            " (SELECT DISTINCT " + s.getName() + currentQuery + ")";
+                    addReferences(s.getReferredTable(), buildingQuery, addedRefs, false, copyFromDB);
                 }
 			}
 		}
 		addedRefs.remove(table);
+
 		if (!first){
 			try {
 				st = DBConnection.getConn().createStatement();
-				bottomQuery = " INSERT IGNORE INTO " + DB2 + "." + table + " " +
-						((withQuery == null) ? "" : withQuery) +
-						" SELECT * " + bottomQuery;
+				currentQuery = " INSERT IGNORE INTO " + DB2 + "." + table + " " +
+						" SELECT * " + currentQuery;
 
 				//System.out.println("\t"+q);
-				st.execute(bottomQuery);
+				st.execute(currentQuery);
 			} catch (SQLException se) {
 				System.out.println("Reference insertion for table " +table+ " failed : " + se.getMessage());
-				System.out.println("\t" + bottomQuery);
+				//System.out.println("\t" + bottomQuery);
 			} finally {
 				query  = "";
 				DBConnection.closeSt(st);

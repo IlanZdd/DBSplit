@@ -6,14 +6,13 @@ import java.util.Arrays;
 import java.util.List;
 
 public class KS_Return {
-    protected List<String> result;
-    protected ForeignKeyColumn fk;
-    protected String commons;
-    protected String deleteDB1;
-    protected String deleteDB2;
-    protected int sum;
-    protected int addReferencesOnwardIndex;
-    protected int commonRecordsIndex;
+    private List<String> result;
+    private ForeignKeyColumn fk;
+    private String commons;
+    private String deleteDB1;
+    private String deleteDB2;
+    private int sum;
+
     public KS_Return() {
         this.result = null;
         this.fk = null;
@@ -21,73 +20,46 @@ public class KS_Return {
         this.deleteDB1 = "";
         this.deleteDB2 = "";
         sum = -1;
-        addReferencesOnwardIndex = -1;
     }
-
-    protected List<String> getResult() {
-        return result;
-    }
-
-    protected void setCommons(String commons) {
-        this.commons = commons;
-    }
-
-    protected void setDeleteDB1(String deleteDB1) {
-        this.deleteDB1 = deleteDB1;
-    }
-
-    protected void setDeleteDB2(String deleteDB2) {
-        this.deleteDB2 = deleteDB2;
-    }
-
-    public String getCommons() {
-        return commons;
-    }
-
-    public String getDeleteDB1() {
-        return deleteDB1;
-    }
-
-    public String getDeleteDB2() {
-        return deleteDB2;
-    }
-
     public void set(List<String> result, ForeignKeyColumn fk) {
         this.result = result;
         this.fk = fk;
     }
 
-    public void clear() {
-        this.result = null;
-        this.fk = null;
+    public ForeignKeyColumn getFk() {
+        return fk;
+    }
+    protected List<String> getResult() {
+        return result;
     }
 
     public int getSum() {
         return sum;
     }
-
     public void setSum(int sum) {
         this.sum = sum;
     }
 
-    public int getAddReferencesOnward() {
-        return addReferencesOnwardIndex;
+
+    protected void setCommons(String commons) {
+        this.commons = commons;
+    }
+    public String getCommons() {
+        return commons;
     }
 
-    public void setAddReferencesOnward(int addReferencesOnwardIndex) {
-        this.addReferencesOnwardIndex = addReferencesOnwardIndex;
+    protected void setDeleteDB1(String deleteDB1) {
+        this.deleteDB1 = deleteDB1;
+    }
+    public String getDeleteDB1() {
+        return deleteDB1;
     }
 
-    public int getCommonRecordsIndex() {
-        return commonRecordsIndex;
+    protected void setDeleteDB2(String deleteDB2) {
+        this.deleteDB2 = deleteDB2;
     }
-
-    public void setCommonRecordsIndex(int commonRecordsIndex) {
-        this.commonRecordsIndex = commonRecordsIndex;
-    }
-
-    public ForeignKeyColumn getFk() {
-        return fk;
+    public String getDeleteDB2() {
+        return deleteDB2;
     }
 
     public boolean hasValues() {
@@ -96,7 +68,7 @@ public class KS_Return {
 
     @Override
     public String toString() {
-        return "KSreturn{" +
+        return "KSReturn{" +
                 "result=" + ((result != null) ? Arrays.toString(result.toArray()) : "null") +
                 ", fk=" + fk +
                 ", sum=" + sum +

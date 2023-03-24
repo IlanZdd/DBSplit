@@ -5,6 +5,7 @@ import src.Other.DBConnection;
 import src.Other.MainDebug;
 
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
 
@@ -12,7 +13,7 @@ import static src.DBSFromHigher.DBSplit_from_higher.graph;
 
 public class GetFromHigher {
 
-    protected static KS_Return MySqlAndSources (String table, List<ForeignKeyColumn> allFKs, int u, int c, int n){
+    protected static KS_Return MySqlAndSources (String table, List<ForeignKeyColumn> allFKs, int rR, int c, int n) throws SQLException {
         long timer = System.currentTimeMillis();
         ForeignKeyColumn fk;
         int fkIndex = 0;
@@ -20,8 +21,9 @@ public class GetFromHigher {
         int length = 0;
         boolean allOne = true;
         int sum = 0;
+
         try {
-            while (fkIndex < allFKs.size() && (allOne || length == 0 || sum < (u+c+n))) {
+            while (fkIndex < allFKs.size() && (allOne || length == 0 || sum < (rR+c+n))) {
                 fk = allFKs.get(fkIndex++);
 
                 //  Counts all the mentions of a specific FK in the table
@@ -38,7 +40,7 @@ public class GetFromHigher {
                 Statement st = DBConnection.getConn().createStatement();
                 ResultSet rs = st.executeQuery(query);
 
-                //initialize value
+                //initialize flags
                 length = 0;
                 allOne = true;
                 sum = 0;
@@ -55,25 +57,28 @@ public class GetFromHigher {
                     sum += rs.getInt(1);
                     ++length;
 
-                    if (sum >= u+c+n) break;
+                    if (sum >= rR+c+n) break;
                 }
-                if ((returnValue.hasValues() && returnValue.getSum()> sum) || length == 0)
-                    continue;
-                int indexForRefs = 0;
+                // if we have a better key, or this key is useless we keep searching
+                if ((returnValue.hasValues() && returnValue.getSum()> sum) || length == 0) continue;
+
+                // otherwise we set this key as viable
                 returnValue.set(fks, fk);
-                returnValue.setAddReferencesOnward(indexForRefs);
                 returnValue.setSum(sum);
 
                 if (DBSplit_from_higher.reporting)
                     MainDebug.report.get(table).setAlgorithm_knapsackTime((double)(System.currentTimeMillis()-timer)/1000);
-                if (!(allOne || sum < (u + c + n)))
+
+                // if all flags are off, we chose this key
+                if (!(allOne || sum < (rR + c + n)))
                     return returnValue;
             }
         } catch (Exception se) {
             System.out.println("Error in Knapsack for " + table + " on FK " +
                     allFKs.get(clamp(fkIndex-1)).getName() + ": " + se.getMessage());
-            se.printStackTrace();
+            throw se;
         }
+
         if (DBSplit_from_higher.reporting)
             MainDebug.report.get(table).setAlgorithm_knapsackTime((double)(System.currentTimeMillis()-timer)/1000);
         return returnValue;
@@ -103,7 +108,7 @@ public class GetFromHigher {
             }
             query = query.substring(0, query.length() - (5));
         }
-        return query += " GROUP BY " + fk.getName() + " ORDER BY count DESC";
+        return query + (" GROUP BY " + fk.getName() + " ORDER BY count DESC");
     }
 
     private static int clamp(int i) {
@@ -117,11 +122,11 @@ public class GetFromHigher {
         KS_Return returnValue = new KS_Return();
         Statement st = null;
         ResultSet rs = null;
-        String query = null;
+        String query;
 
         try {
             // Gets the unreferenced records from DB1 and DB2, grouped by foreign key, and searches for common ones;
-            fk = allFKs.get(fkIndex++);
+            fk = allFKs.get(fkIndex);
 
             Map<String, BeanForSQLite> db1 = new HashMap<>();
             Map<String, BeanForSQLite> db2 = new HashMap<>();
@@ -185,8 +190,8 @@ public class GetFromHigher {
             }
 
             StringBuilder commonFKs = new StringBuilder();
-            StringBuilder deleteNfromDB1 = new StringBuilder();
-            StringBuilder deleteMfromDB2 = new StringBuilder();
+            StringBuilder deleteNFromDB1 = new StringBuilder();
+            StringBuilder deleteMFromDB2 = new StringBuilder();
 
             //Sorts the common foreign keys objects by number of records that use it
             List<BeanForSQLite> sortedFks = new ArrayList<>(commons.values());
@@ -218,7 +223,7 @@ public class GetFromHigher {
             upTo = 0;
             for (int i = 0; i < sortedFks.size() && upTo < n; ++i) {
                 String key = sortedFks.get(i).getForeignKey();
-                deleteNfromDB1.append(
+                deleteNFromDB1.append(
                         DBSplit_from_higher.printStr(sortedFks.get(i).getRowIds(), 0, n - upTo))
                         .append(", ");
                 upTo += sortedFks.get(i).size();
@@ -235,7 +240,7 @@ public class GetFromHigher {
             // Select m records
             upTo = 0;
             for (int i = 0; i < sortedFks.size() && upTo < m; ++i) {
-                deleteMfromDB2.append(
+                deleteMFromDB2.append(
                         DBSplit_from_higher.printStr(sortedFks.get(i).getRowIds(), 0, m - upTo))
                         .append(", ");
                 upTo += sortedFks.get(i).size();
@@ -244,16 +249,16 @@ public class GetFromHigher {
             // removes the last ", "
             if (commonFKs.length() > 2)
                 commonFKs = new StringBuilder(commonFKs.substring(0, commonFKs.length() - 2));
-            if (deleteNfromDB1.length() > 2)
-                deleteNfromDB1 = new StringBuilder(deleteNfromDB1.substring(0, deleteNfromDB1.length() - 2));
-            if (deleteMfromDB2.length() > 2)
-                deleteMfromDB2 = new StringBuilder(deleteMfromDB2.substring(0, deleteMfromDB2.length() - 2));
+            if (deleteNFromDB1.length() > 2)
+                deleteNFromDB1 = new StringBuilder(deleteNFromDB1.substring(0, deleteNFromDB1.length() - 2));
+            if (deleteMFromDB2.length() > 2)
+                deleteMFromDB2 = new StringBuilder(deleteMFromDB2.substring(0, deleteMFromDB2.length() - 2));
 
             // Sets the return value
             returnValue.set(null, fk);
             returnValue.setCommons(commonFKs.toString());
-            returnValue.setDeleteDB1(deleteNfromDB1.toString());
-            returnValue.setDeleteDB2(deleteMfromDB2.toString());
+            returnValue.setDeleteDB1(deleteNFromDB1.toString());
+            returnValue.setDeleteDB2(deleteMFromDB2.toString());
 
             if (DBSplit_from_higher.reporting)
                 MainDebug.report.get(table).setAlgorithm_knapsackTime((double)(System.currentTimeMillis()-knapsackTimer)/1000);
