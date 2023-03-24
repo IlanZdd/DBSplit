@@ -17,7 +17,7 @@ public class DBMutation {
 	private static ResultSet rs = null;
 	private final Graph graph;
 	private final List<String> validTables;
-	private final int insertThreshold = 350;
+	private final int insertThreshold = 350; //Max number of records per insert into table query (performance)
 	private boolean augmenting = false;
 
 	//Percentages for randomness in generators
@@ -62,13 +62,13 @@ public class DBMutation {
 		while (run) {
 			boolean codeError = false;
 			System.out.println("Comandi:\n" +
-					"\tAugmentation <PercentualeAugmentation> <PercentualeMutation>\n\t\t" +
-					"Effettua augmentation del DB del <PercentualeAugmentation>% e di questi\n\t\tne muta <PercentualeMutation>%\n" +
-					"\t\t<PercentualeMutation> non deve essere > 100");
-			System.out.println("Oppure\n\tSeleziona una Tabella:");
+					"\tAugmentation <AugmentationPercentage> <MutationPercentage>\n\t\t" +
+					"Augments the database by<AugmentationPercentage>% and \n\t\tit will mutate <MutationPercentage>% of these\n" +
+					"\t\t<MutationPercentage> cant be more than 100");
+			System.out.println("or\n\tSelect a table:");
 			for(String s : validTables)
 				System.out.println("\t" + s);
-			System.out.println("Digita \"back\" per terminare l'esecuzione");
+			System.out.println("Type \"back\" to end the execution");
 
 			String userInput = input.nextLine();
 
@@ -86,16 +86,15 @@ public class DBMutation {
 				}
 
 				while(mutatingColumns) {
-					System.out.println("Seleziona la colonna non key per effettuare le mutazioni\n" +
-							"oppure\ndigita \"GenerateRecords <percentualeAumento>\" per aumentare il numero di records del <percentualeAumento>% per " + table + ":\n" +
-							"Numero records attuale: " + graph.getRecordNumberInTable(table) + ";\n" +
-							"ScrambleRecords <percentualeRecords>: Mischia i valori di ogni campo non chiave per la percentuale di records di richiesta. percentualeRecords < 100 e positivo;\n" +
-							"ShiftRecords <percentualeRecords>: Mischia i valori di ogni campo non chiave per la percentuale di records di richiesta. percentualeRecords < 100 e positivo;\n" +
-							"Digita \"back\" per tornare alla selezione della tabella");
-
+					System.out.println("Select a non-key column on which to perform mutations\n" +
+							"or\nType \"GenerateRecords <incrementPercentage>\" to increment of number of records by <incrementPercentage>% for " + table + ":\n" +
+							"Current number of records: " + graph.getRecordNumberInTable(table) + ";\n" +
+							"ScrambleRecords <percentageOfRecords>: Shuffles non-key values of the percentage required. percentageOfRecords must be greater than 100 and positive;\n" +
+							"ShiftRecords <percentualeRecords>: Shuffles non-key values of the percentage required. percentageOfRecords must be greater than 100 and positive.\n" +
+							"Type \"back\" to return to table selection");
 					int k = 0;
 					List<String> validColumns = new ArrayList<>();
-					System.out.println("\nColonne selezionabili:");
+					System.out.println("\nSelectable columns:");
 					for (Column c : graph.getColumnsInTable(table)) {
 						if (!c.isPrimaryKey()) {
 							System.out.print((k % 3 == 0 ? "\n" : "") + c.getName() + "; ");
@@ -113,7 +112,7 @@ public class DBMutation {
 						userInput = "";
 
 						if (!column.isNullable()) {
-							System.out.println("Unica operazione eseguibile: Modify: Modifica il valore di " + column.getName() + " di n records;\nVuoi eseguirla?");
+							System.out.println("The only selectable mutation is: Modify: Modifies the values of " + column.getName() + " of n records;\nWould you like to perform it??");
 							if (answer())
 								modify(column, table);
 						} else {
@@ -121,10 +120,10 @@ public class DBMutation {
 							while (choosing) {
 								boolean done = false;
 
-								System.out.println("Seleziona operazione da effettuare:\n" +
-										"\tModify: Modifica il valore di " + column.getName() + " di n records;\n" +
-										"\tBlank:  Riempie i valori nulli o vuoti con valori non nulli, se presenti;" +
-										"Digita \"back\" per tornare alla selezione della colonna");
+								System.out.println("Select the mutation you would like to perform:\n" +
+										"\tModify:  Modifies the values of " + column.getName() + " of n records;\n" +
+										"\tBlank:  Fills null or empty values with new values;" +
+										"Type \"back\" to return to column selection");
 
 								userInput = input.nextLine();
 								switch (userInput.toLowerCase()) {
@@ -138,10 +137,10 @@ public class DBMutation {
 									}
 									case "back" -> choosing = false;
 
-									default -> System.out.println("Devi inserire una delle due operazioni");
+									default -> System.out.println("You have to select one of the mutations");
 								}
 								if (done) {
-									System.out.println("Vuoi effettuare altre operazioni su " + column.getName() + "?");
+									System.out.println("Would you like to perform other mutations to " + column.getName() + "?");
 									if (!answer())
 										choosing = false;
 								}
@@ -161,7 +160,7 @@ public class DBMutation {
 									System.out.println("Mutation GenerateRecords stopped");
 								}
 							} else
-								System.out.println("Errore: Comando Generator errato.");
+								System.out.println("Error: Incorrect command GenerateRecords.");
 
 						} else if (userInput.contains("ScrambleRecords")){
 							Pattern scramble = Pattern.compile("ScrambleRecords \\d{1,3}");
@@ -187,12 +186,12 @@ public class DBMutation {
 									System.out.println("Mutation Shift have failed");
 								}
 							}
-						} else System.out.println("Errore: colonna non presente");
+						} else System.out.println("Error: Column not present");
 					}
 
 					if (userInput.equalsIgnoreCase("back")) continue;
 
-					System.out.println("Vuoi effettuare altre operazioni sulla tabella " + table + "?");
+					System.out.println("Would you like to perform other mutations on the table " + table + "?");
 					if (!answer())
 						mutatingColumns = false;
 				}
@@ -242,18 +241,18 @@ public class DBMutation {
 					}
 					codeError = false;
 				} else {
-					System.out.println("Errore: Comando Augmentation errato.");
+					System.out.println("Errore: Incorrect comnand Augmentation.");
 					codeError = false;
 				}
 			}
 
 			if (codeError)
-				System.out.println("Errore: tabella o comando non riconosciuti");
+				System.out.println("Error: unrecognized command or table");
 
-			System.out.println("Vuoi effettaure altro?");
+			System.out.println("Would you like to perform more mutations?");
 			if (!answer()) run = false;
 		}
-		System.out.println("Fine");
+		System.out.println("End mutate");
 		return true;
 	}
 
@@ -271,9 +270,9 @@ public class DBMutation {
 			recordsAdded = 0;
 			copyRecords(table, percCopy, percMutate);
 			if (howManyToMutate > 0) {
-				//Selezione a roulette:
-				// 			0 -> percCombineRecords : si usa scramble o shift
-				//			percCombineRecords -> 100 (lunghezza range = percRandomValues)
+				//Roulette selection:
+				// 			[0, percCombineRecords) : scramble or shift will be used
+				//			[percCombineRecords -> 100] : randomModify will be used
 				if (graph.getColumnNumberInTable(table) == graph.getPrimaryKeyNumberInTable(table)
 						|| r.nextInt(100) < percCombineRecords) {
 					if (r.nextInt(100) % 2 == 0)
@@ -313,27 +312,34 @@ public class DBMutation {
 		recordsAdded = 0;
 	}
 
-	//Copia percCopy records modificandone le chiavi:
-	//di questi il percMutate% viene messo in una matrice di stringhe temporanea usata da Augmentation,
-	//il resto aggiunti alla tabella originale
+	/**
+	 * Copies percCopy records into the database. Of the copied records, percMutate will be stored in a matrix to be
+	 * mutated later during augmentation.
+	 * @param table	table to copy records from and copy records to
+	 * @param percCopy	percentage of records to copy
+	 * @param percMutate percentage of records to mutate
+	 * @throws Exception Any Exception that could be thrown
+	 */
 	private void copyRecords(String table, int percCopy, int percMutate) throws Exception{
-		//Calcola quanti records copiare e quanti di questi mutare
+
 		int howMany = Math.max(1, percCopy * graph.getRecordNumberInTable(table)/100);
 		int howManyToMutate = howMany * percMutate/100;
 		String temp = "tempForMutate" + table;
-		//Crea una tabella temporanea con struttura identica a quella dalla quale si stanno prendendo i records
-		//dove inserire i records da mutare e la inserisce al grafo
+		//Takes the records needed
 		query = "SELECT * FROM " + table +" ORDER BY RAND() LIMIT " + howMany;
 		Statement st = DBConnection.getConn().createStatement();
 		ResultSet rs = st.executeQuery(query);
 		List<Column> columns = graph.getColumnsInTable(table);
 
+		//Prepare stringbuilder for insertion queries
 		int count = 0;
 		String queryFirstPart = createInsertionQueryPlaceholder(columns, table);
 		StringBuilder queryCopy = null;
 		String queryTempFirstPart = null;
 		StringBuilder queryTemp = null;
 
+		//prepare a matrix to contain copied records if needed
+		//It wont be instanciated if all records will be mutated
 		String[][] recordsToCopy = null;
 		int remainingRecordsToCopy = 0;
 		int toDivideCopy = 0;
@@ -347,6 +353,8 @@ public class DBMutation {
 			queryCopy =  new StringBuilder(queryFirstPart);
 		}
 
+		//Selects a random primary key not autoincrement. if it remains null then its only autoincrement or no keys
+		//No checks for keys will be made
 		Column randomPk = null;
 		for(Column col : graph.getPrimaryKeysInTable(table)) {
 			if (!col.isAutoIncrementing()) {
@@ -355,6 +363,10 @@ public class DBMutation {
 			}
 		}
 
+		//Creates a temporary table where to insert records to mutate, if there is any primary key not-autoincrement
+		//Since records to mutate will be stored in the global "records" variable, it could be
+		//slow to check all keys inside it so records will be added in this table to
+		//optimize duplicate keys research with the new ones using the DBMS.
 		int toDivideMutate = howManyToMutate;
 		int remainingRecordsToMutate = howManyToMutate;
 		if (randomPk != null && howManyToMutate > 0) {
@@ -370,7 +382,7 @@ public class DBMutation {
 		while(rs.next()) {
 			String[] values = new String[columns.size()];
 
-			//Prende ogni campo e inserisce in un array i suoi valori
+			//Takes each values of fields and copy them. If its a primary key then it already generate a new one
 			for(Column c : columns) {
 				int columnIndex = columns.indexOf(c);
 				if (c.isAutoIncrementing())
@@ -384,29 +396,31 @@ public class DBMutation {
 					values[columnIndex] = checkEscapes(values[columns.indexOf(c)]);
 				else values[columnIndex] = "null";
 			}
-			//values -> values; toMutate -> records; toMutateMax -> recordsadded, toCopy -> recordsToCopy, table -> table
-			//startToSearchFrom -> startToSearchFrom; checkMutated -> checkMutated
-			//Controlla che le chiavi primarie che ha non siano già presenti ne nella tabella
-			//ne nelle chiavi già generate e non ancora inserite
+
+			//Rows 400-481: check if the generated keys of the current record copied are already in the database, in the records variable
+			//or in the recordsToCopy variable
+			//Search for a record with the same value as the random primary key. If it find it then check all the keys for that record
+			//if all keys match they will be all generated again
 			boolean alreadyGenerated;
 			int countFails = 0;
 			do {
 				alreadyGenerated = false;
+				//Null -> autoIncrement -> no checks needed
 				if (randomPk != null) {
+
+					//If the keys are not in temp table or the original table
 					if (!areKeysAlreadyIn(values, table, table) && (checkMutated || !areKeysAlreadyIn(values, table, temp))) {
 
-						int columnIndex = columns.indexOf(randomPk);
-						int toMutateStartingIndex = startToSearchFrom;
-						int toCopyStartingIndex = 0;
+						int columnIndex = columns.indexOf(randomPk); 	//Index of the field in the matrix
+						int toMutateStartingIndex = startToSearchFrom;	//starting index for search in records variable. the index changes after a chunk of the records are added to the tenporary table
+						int toCopyStartingIndex = 0;					//starting index for search in recordsToCopy variable
 						boolean finished = false;
 						do {
 							int recordIndex = -1;
 							boolean foundInCopied = false;
-
+							//check the new key in records
 							for (int i = toMutateStartingIndex; i < recordsAdded; ++i) {
-
 								if (records[i][columnIndex].equals(values[columnIndex])) {
-									//System.out.println("Ho trovato " + values[columnIndex] + " per " + c.getName() + " in ciclo per records");
 									if (graph.getPrimaryKeyNumberInTable(table) == 1)
 										alreadyGenerated = true;
 									else {
@@ -417,11 +431,10 @@ public class DBMutation {
 								}
 								if (i == recordsAdded - 1) toMutateStartingIndex = recordsAdded;
 							}
-
+							//if its not in records then it checks the new key in recordsToCopy
 							if (toMutateStartingIndex == recordsAdded) {
 								for (int i = toCopyStartingIndex; i < recordsCopied; ++i) {
 									if (recordsToCopy[i][columnIndex].equals(values[columnIndex])) {
-										//System.out.println("Ho trovato " + values[columnIndex] + " per " + c.getName() + " in ciclo per recordsCopy");
 										if (graph.getPrimaryKeyNumberInTable(table) == 1)
 											alreadyGenerated = true;
 										else {
@@ -433,9 +446,14 @@ public class DBMutation {
 									}
 								}
 							}
+
+							//recordsIndex == -1 -> keys are unique
 							if (recordIndex == -1) finished = true;
 							else {
+								//A key had the same value: it will check all the other keys of the record found
 								List<Column> pKeys = graph.getPrimaryKeysInTable(table);
+
+								//This gets "break" if the keys are unique
 								for (int i = 0; i < pKeys.size(); ++i) {
 									Column p = pKeys.get(i);
 									if (i != columnIndex && !p.isAutoIncrementing()) {
@@ -448,6 +466,7 @@ public class DBMutation {
 										}
 									}
 									if (i == pKeys.size() - 1) {
+										//The new keys are already present somewhere
 										alreadyGenerated = true;
 										finished = true;
 									}
@@ -460,6 +479,8 @@ public class DBMutation {
 						alreadyGenerated = true;
 				}
 				if (alreadyGenerated) {
+
+					//Generates new key and repeats the checks
 					for(Column p : graph.getPrimaryKeysInTable(table)) {
 						int columnIndex = columns.indexOf(p);
 						String val = generatorController.generateValue(table, p.getName(), countFails > 100);
@@ -470,6 +491,8 @@ public class DBMutation {
 				}
 			} while (alreadyGenerated);
 
+			//adds records to mutate in the matrix and in the query for the temp table. If the query has toDivideMutate records
+			//then they are added
 			if (count < howManyToMutate){
 				records[recordsAdded] = values;
 				++recordsAdded;
@@ -499,6 +522,7 @@ public class DBMutation {
 					}
 				}
 			} else {
+				//Same for the recordsToMutate if count > howManyToMutate
 				recordsToCopy[recordsCopied] = values;
 				++recordsCopied;
 				++count;
@@ -526,7 +550,7 @@ public class DBMutation {
 				}
 			}
 
-			//Aggiorna il numero dei records nel generatore
+			//updates fields totals and foreignvalues of generators
 			for(Column c : columns) {
 				if (!values[columns.indexOf(c)].equalsIgnoreCase("null"))
 					generatorController.updateTotal(table, c.getName());
@@ -543,6 +567,15 @@ public class DBMutation {
 		}
 	}
 
+	/**
+	 * Shuffles records values. For each column, it selects a record to start to shuffle from and moves all values around until the last one
+	 * that is moved to the starting position.
+	 * @param table	table to scramble records to
+	 * @param values records to scramble if it's called from Augmentation mutation
+	 * @param howMany how many records to scramble
+	 * @throws Exception any exception
+	 */
+
 	public void scrambleRecords(String table, String[][] values, int howMany) throws Exception{
 		if (values == null)
 			values = getNRecordsFrom(table, howMany);
@@ -550,7 +583,7 @@ public class DBMutation {
 		boolean scrambled = true;
 		if (!(graph.getPrimaryKeyNumberInTable(table) == graph.getColumnNumberInTable(table))) {
 			List<Column> columns = graph.getColumnsInTable(table);
-			//Lista che contiene gli indici che poi verranno presi a caso
+			//Listof the indexes
 			List<Integer> indexes = new ArrayList<>();
 			for(int i = 0; i < howMany; ++i)
 				indexes.add(i);
@@ -558,25 +591,27 @@ public class DBMutation {
 			Random r = new Random();
 			for (Column c : columns) {
 				if (!c.isPrimaryKey()) {
-					//Lista che funge da "stack" per gli indici da rimuovere
+					//list to use as a "stack" to select where to move the next value
 					List<Integer> alreadyScrambled = new ArrayList<>(indexes);
 
-					//scelgo da dove partire
+					//selects starting position
 					int i = alreadyScrambled.remove(r.nextInt(alreadyScrambled.size()));
 					int columnIndex = columns.indexOf(c);
 					String prev = values[i][columnIndex];
 					while (alreadyScrambled.size() > 0) {
-						//scelgo il prossimo da cambiare
+						//selects where to move the value and what value gets moved next
 						int j = alreadyScrambled.remove(r.nextInt(alreadyScrambled.size()));
 						String temp = values[j][columnIndex];
 						values[j][columnIndex] = prev;
 						prev = temp;
 					}
+					//the last value gets moved to the starting position
 					values[i][columnIndex] = prev;
 				}
 			}
 		} else scrambled = false;
-		//cancella i records che ho scrambleato e li reinserisce con i nuovi valori
+
+		//inserts the scrambled records into the db
 		if (scrambled) {
 			try{
 				if (augmenting)
@@ -590,11 +625,21 @@ public class DBMutation {
 		}
 	}
 
+	/**
+	 * Shuffles records values. For each column, it will decide to move the entire column up or down and shift all values by
+	 * how many records it wants.
+	 * @param table
+	 * @param values records to shuffle if it is called from Augmentation mutation
+	 * @param howMany how many records to shift values
+	 * @throws Exception Any Exception
+	 */
 	public void shiftRecords(String table, String[][] values, int howMany) throws Exception{
 		if (howMany < 2) return;
 		if (values == null)
 			values = getNRecordsFrom(table, howMany);
+
 		boolean shifting = true;
+		//It won't shift primary keys
 		if (!(graph.getPrimaryKeyNumberInTable(table) == graph.getColumnNumberInTable(table))) {
 			List<Column> columns = graph.getColumnsInTable(table);
 			Random r = new Random();
@@ -603,18 +648,21 @@ public class DBMutation {
 				if (!c.isPrimaryKey()) {
 					int number;
 					do {
+						//chooses a random value differnt from the previous, to avoid the same combination of values
 						number = r.nextInt(howMany);
+						if (r.nextInt() % 2 == 1) number = -number;
 					} while (number == prev);
 					prev = number;
 					int columnIndex = columns.indexOf(c);
 					String[] temp = new String[howMany];
+					//for each record, moves by number positions the values in the column
 					for (int i = 0; i < howMany; ++i) {
 						if (!c.isAutoIncrementing()) {
 							int j = (i + number) % howMany;
 							temp[j] = values[i][columnIndex];
 						}
 					}
-					//Riassegna i valori in values nelle nuove posizioni
+					//assign the columns value to each record
 					for (int i = 0; i < howMany; ++i) {
 						values[i][columnIndex] = temp[i];
 					}
@@ -623,7 +671,7 @@ public class DBMutation {
 		} else shifting = false;
 
 		if (shifting) {
-			//Cancella i records che ora ha shiftato e reinserisce con valori modificati
+			//inserts the scrambled records into the db
 			try {
 				if (augmenting)
 					insertRecords(table, values, howMany);
@@ -634,9 +682,15 @@ public class DBMutation {
 				throw e;
 			}
 		}
-
 	}
 
+	/**
+	 * Inserts records into the Database.
+	 * @param table table to insert records to
+	 * @param values records to insert
+	 * @param howMany how many records to insert
+	 * @throws SQLException if the query goes wrong
+	 */
 	private void insertRecords(String table, String[][] values, int howMany) throws SQLException {
 		int threshold = Math.min(howMany, insertThreshold);
 		int remaining = howMany;
@@ -667,6 +721,15 @@ public class DBMutation {
 		}
 	}
 
+	/**
+	 * replaces records by inserting them with the "ON DUPLICATE KEY UPDATE"
+	 * Since it's not known if it is used "innoDB" or "MyISAM" as the storage engine for the table, if the key is autoincrement
+	 * then it will be used an Update for each record: <a href="https://dev.mysql.com/doc/refman/8.0/en/insert-on-duplicate.html">For InnoDB, new key will be added and not updated</a>
+	 * @param table table to update
+	 * @param values records to update
+	 * @param howMany how many records to update
+	 * @throws SQLException
+	 */
 	private void replaceRecords(String table, String[][] values, int howMany) throws SQLException {
 
 		int threshold = Math.min(howMany, insertThreshold);
@@ -675,6 +738,7 @@ public class DBMutation {
 
 		List<Column> columns = graph.getColumnsInTable(table);
 		boolean allAI = false;
+		//checks if all primary key are autoincrementing
 		for (Column c : columns) {
 			if (c.isPrimaryKey() && c.isAutoIncrementing())  {
 				allAI = true;
@@ -682,6 +746,7 @@ public class DBMutation {
 			}
 		}
 		if (!allAI) {
+			//uses insert into on duplicate key update as the insertRecords method
 			String startInsertionQuery = createInsertionQueryPlaceholder(columns, table);
 			StringBuilder insertionQuery = new StringBuilder(startInsertionQuery);
 			StringBuilder duplicateUpdate = new StringBuilder("ON DUPLICATE KEY UPDATE ");
@@ -725,6 +790,7 @@ public class DBMutation {
 				}
 			}
 		} else {
+			//Uses an update for each record
 			for (int i = 0; i < howMany; ++i) {
 				query = "UPDATE " + table + " set ";
 				for (Column c : columns) {
@@ -755,6 +821,13 @@ public class DBMutation {
 		}
 	}
 
+	/**
+	 * Copies N records from a table
+	 * @param table table to get records
+	 * @param howMany how many records
+	 * @return string matrix of copied records
+	 * @throws Exception
+	 */
 	private String[][] getNRecordsFrom(String table, int howMany) throws Exception {
 		List<Column> columns = graph.getColumnsInTable(table);
 		String[][] values = new String[howMany][columns.size()];
@@ -790,10 +863,10 @@ public class DBMutation {
 		return insertQuery.toString();
 	}
 
-	/*Metodo per il riempimento dei blank
-	 * - conta il numero di blank presenti nella colonna (se non presenti finisce l'esecuzione)
-	 * - scelta tipologia di riempimento
-	 * - invocazione del rispettivo metodo
+	/**
+	 * Method that handles the blank mutation
+	 * @param column column to mutate
+	 * @param table table the column is in
 	 */
 	public void fillBlanks(Column column, String table) {
 		int n_blank = -1;
@@ -818,12 +891,18 @@ public class DBMutation {
 			DBConnection.closeRs(rs);
 		}
 		if(n_blank == 0) {
-			System.out.println("Non sono presenti spazi vuoti in: "+column.getName());
+			System.out.println("There isnt a null or empty value in: "+column.getName());
 		}else if(n_blank > 0) {
 			fillBlanksWithRandom(column,table, n_blank);
 		}
 	}
 
+	/**
+	 * Fills null or empty values with new values
+	 * @param column column to mutate
+	 * @param table table the column is in
+	 * @param n_blank how many blank values there is in column
+	 */
 	private void fillBlanksWithRandom(Column column, String table, int n_blank) {
 		Random r = new Random();
 		int remaining = n_blank;
@@ -846,7 +925,6 @@ public class DBMutation {
 
 				Statement st = DBConnection.getConn().createStatement();
 				st.executeUpdate(query);
-				System.out.println("Operazione eseguita, " + n + " blank riempiti con: " + val);
 
 			} catch(Exception e) {
 				System.out.println("Error: " + e.getMessage());
@@ -855,17 +933,17 @@ public class DBMutation {
 		}
 	}
 
-	/*Metodo per la modifica di valori di una colonna
-	 * - scelta, in base al tipo di colonna, il tipo di modifica
-	 * - invocazione del rispettivo metodo
+	/**
+	 * Method that guides the user to the modify mutations
+	 * @param column column to mutate
+	 * @param table table the column is in
 	 */
 	private void modify(Column column, String table) {
 		switch(column.getDatatype()) {
 			case Types.NUMERIC, Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.DECIMAL,
 					Types.FLOAT, Types.REAL, Types.TINYINT -> {
 				if (column instanceof ForeignKeyColumn){
-					System.out.println("E' foreignKey: Modifica possibile: random");
-					System.out.println("Quanti valori vuoi modificare?");
+					System.out.println("Its a foreign key. The only mutation avaliable is: modify.");
 					int howMany = askHowMany() * graph.getRecordNumberInTable(table)/100;
 					try {
 						randomModify(new Column[]{column}, null, table, howMany);
@@ -874,12 +952,11 @@ public class DBMutation {
 						System.out.println("Mutation modify aborted. There was a problem in generation");
 					}
 				} else {
-					System.out.println("Inserisci tipo di modifica (operazione - random)");
+					System.out.println("Select the type of mutation: (operation; random)");
 					String type = input.nextLine();
-					if (type.equalsIgnoreCase("operazione"))
+					if (type.equalsIgnoreCase("operation"))
 						randomOperation(column, table);
 					else if (type.equalsIgnoreCase("random")) {
-						System.out.println("Quanti valori vuoi modificare?");
 						int howMany = askHowMany() * graph.getRecordNumberInTable(table)/100;
 						try {
 							randomModify(new Column[]{column}, null, table, howMany);
@@ -888,12 +965,11 @@ public class DBMutation {
 							System.out.println("Mutation modify aborted. There was a problem in generation");
 						}
 					} else
-						System.out.println("Modifica inserita non valida");
+						System.out.println("Invalid mutation");
 				}
 			}
 			default -> {
-				System.out.println((column instanceof ForeignKeyColumn ? "E' foreignkey: " : "") + "Modifica possibile: random");
-				System.out.println("Quanti valori vuoi modificare?");
+				System.out.println((column instanceof ForeignKeyColumn ? "It's a foreign key: " : "") + "Avaliable mutation: random");
 				int howMany = askHowMany() * graph.getRecordNumberInTable(table)/100;
 				try {
 					randomModify(new Column[]{column}, null, table, howMany);
@@ -905,6 +981,14 @@ public class DBMutation {
 		}
 	}
 
+	/**
+	 * Generates new values for each column selected.
+	 * @param columnsToModify columns that are selected
+	 * @param values records to modify if it's called from Augmentation mutation
+	 * @param table table to mutate
+	 * @param howMany how many records to mutate
+	 * @throws Exception
+	 */
 	public void randomModify(Column[] columnsToModify, String[][] values, String table, int howMany) throws Exception{
 		if (values == null)
 			values = getNRecordsFrom(table, howMany);
@@ -933,22 +1017,30 @@ public class DBMutation {
 		}
 	}
 
-	/*Metodo per la modifica: OPERAZIONE
-	 * - sceglie casualmente l'operazione da effettuare
-	 * - chiede a GeneratorController i bound per il campo selezionato
-	 * - effettua l'operazione su valori che, applicata la mutazione, non violeranno il bound
+	/**
+	 * Performs random addition or subractions to values in a column
+	 * @param column column to mutate
+	 * @param table table the column is in
 	 */
 	public void randomOperation(Column column, String table) {
 		//Operazioni successive nella stessa esecuzione potrebbero avvenire sugli stessi records
 		//Finche si è in una certa istanza di mutation, i lowerbound e upperbound dei campi numerici è sempre lo stesso
-		System.out.println("Quante operazioni vuoi effettuare?");
 		Random r = new Random();
 		int howMany = askHowMany();
-		int h = howMany;
+		int total = howMany;
 		char[] operations = {'+', '-'};
-		int tried = 0;
-		int success = 0;
-		String pKeys = graph.getPrimaryKeysStringInTable(table, ',', "", "");
+		int fails = 0;
+		String pKeys = "";
+		boolean b = false;
+		if (graph.getPrimaryKeyNumberInTable(table) == 0) {
+			b = true;
+			for (Column c : graph.getColumnsInTable(table)){
+				if (c.isNullable())
+					pKeys += c.getName();
+			}
+
+		}else
+			pKeys = graph.getPrimaryKeysStringInTable(table, ',', "", "");
 		char operation =operations[r.nextInt(operations.length)];
 		long operationBound = generatorController.getOperationBound(table, column.getName(), operation);
 		double randomBound = (double) Math.abs(operationBound)/2;
@@ -961,9 +1053,10 @@ public class DBMutation {
 			while (howMany > 0) {
 				double random = r.nextDouble(randomBound);
 				int n = r.nextInt(howMany) + 1;
+				//this might fail if all field are nullable and there is no primary key
 				String cond = column.getName() + operation + random + conditionSign + operationBound;
 				query = "UPDATE " + table + " SET " + column.getName() + "=" + column.getName() + operation + random + " " +
-						"WHERE " + (graph.isPrimaryKeyComposedInTable(table) ? "(" + pKeys + ")" : pKeys) + " IN (" +
+						"WHERE " + (graph.isPrimaryKeyComposedInTable(table) || b ? "(" + pKeys + ")" : pKeys) + " IN (" +
 						"SELECT " + pKeys + " FROM ( " +
 						"SELECT " + pKeys + " FROM " + table + " " +
 						"WHERE " + cond +
@@ -974,15 +1067,15 @@ public class DBMutation {
 					n = st.getUpdateCount();
 				}
 				if (n > 0) {
-					++success;
 					howMany -= n;
-					System.out.println("Operazione " + operation + " eseguita su " + n + " records con il valore " + random);
-				} else {
-					//Questa cosa è da togliere
-					howMany = 0;
-					System.out.println("Non ci sono più elementi che rispettino la condizione " + cond);
+					fails = 0;
+				} else
+					++fails;
+
+				if (fails > 100) {
+					System.out.println("No more values can be consistently updated: values mutated: " + (total - howMany));
+					break;
 				}
-				++tried;
 			}
 		}catch(SQLException se) {
 			System.out.println("Error: " + se.getMessage());
@@ -990,11 +1083,14 @@ public class DBMutation {
 		}finally {
 			DBConnection.closeSt(st);
 		}
-		System.out.println(success + "/" + tried + " for " + h + " records");
 	}
 
+	/**
+	 * Asks how much percentage of records to mutate.
+	 * @return
+	 */
 	private int askHowMany(){
-		System.out.println("Seleziona percentuale di mutazione: ");
+		System.out.println("Select the percentage of records that you want to mutate: ");
 		int howMany ;
 		do{
 			try {
@@ -1011,6 +1107,12 @@ public class DBMutation {
 		return howMany;
 	}
 
+	/**
+	 * Generates new records for the table
+	 * @param table table to generate new records
+	 * @param howManyPerc percentage of how many records to generate
+	 * @throws Exception
+	 */
 	public void generateRandomRecords(String table, int howManyPerc) throws Exception {
 		int threshold = insertThreshold;
 		List<Column> columns = graph.getColumnsInTable(table);
@@ -1037,7 +1139,7 @@ public class DBMutation {
 				}
 			}
 
-			//check for keys in matrix and table
+			//check for keys in matrix like copyrecords does
 			boolean alreadyGenerated;
 			int countFails = 0;
 			do {
@@ -1111,6 +1213,11 @@ public class DBMutation {
 
 	}
 
+	/**
+	 * Escapes the ' character to avoid problems in queries
+	 * @param val
+	 * @return
+	 */
 	private String checkEscapes(String val) {
 
 		if (val.contains("CONVERT")) return val;
@@ -1128,22 +1235,27 @@ public class DBMutation {
 		return returnVal;
 	}
 
+	/**
+	 * Asks yes or no to the user
+	 * @return true if yes, false if no
+	 */
 	private boolean answer() {
 		String input ="";
 		while(true) {
 			input = DBMutation.input.nextLine();
-			if(input.equalsIgnoreCase("si")) return true;
+			if(input.equalsIgnoreCase("yes")) return true;
 			if (input.equalsIgnoreCase("no")) return false;
 
-			System.out.println("Attenzione: inserire si o no");
+			System.out.println("You have to answer yes or no");
 		}
 	}
-	/** Effettua una query che controlla se i valori generati delle chiavi primarie sono già presenti
+	/** Performs a query that checks whether the generated values of the primary keys are already present
 	 *
-	 * @param values Valori delle chiavi primarie
-	 * @param table	 Tabella
-	 * @return	True se la combinazione di chiavi non è presente nella tabella
-	 * @throws Exception Ogni SQLException
+	 * @param values record values
+	 * @param table	 reference table for graph
+	 * @param tableToCheck table to actually check the keys
+	 * @return	true if the key combination is already in the table, false otherwise
+	 * @throws Exception sqlesxeption
 	 */
 	private boolean areKeysAlreadyIn(String[] values, String table, String tableToCheck) {
 
@@ -1154,13 +1266,11 @@ public class DBMutation {
 		String primaryKeysQuery = "SELECT * FROM " + tableToCheck + " ";
 		StringBuilder whereConditions = new StringBuilder("WHERE ");
 		for (Column primaryKey : primaryKeys) {
-			//Se il valore dato alla primaryKey è AUTO_INCREMENT allora la colonna non deve essere considerata
-			//Nella query. Se quella è l'unica colonna
+
 			if (primaryKey.isAutoIncrementing()) {
 				if (!graph.isPrimaryKeyComposedInTable(table))
 					return false;
 			} else {
-				//Altrimenti costruisce la where clause per fare la query
 				if (values[columns.indexOf(primaryKey)].equalsIgnoreCase("null"))
 					whereConditions.append(primaryKey.getName()).append(" is ").append(values[columns.indexOf(primaryKey)]).append(" and ");
 				else
@@ -1168,10 +1278,8 @@ public class DBMutation {
 			}
 		}
 
-		//Remove the last and
 		whereConditions = new StringBuilder(whereConditions.substring(0, whereConditions.length() - 5));
 
-		//Completo ed eseguo la query
 		primaryKeysQuery += whereConditions;
 		try {
 			ResultSet check = DBConnection.getConn().createStatement().executeQuery(primaryKeysQuery);
