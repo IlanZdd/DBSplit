@@ -255,7 +255,6 @@ public class Generator {
 
     public String generateValue(String name, boolean getRandom) throws Exception {
         Field field = getField(name);
-
         if (field == null)
             throw new IllegalArgumentException(name + " not present in field list");
 
@@ -488,7 +487,7 @@ public class Generator {
             random = field.getRandomValue();
             length = r.nextInt(field.getLength()) + 1;
         }
-        String characters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ";
+        String characters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
         StringBuilder builder = new StringBuilder();
 
         for(int i = 0; i < length; ++i) {
@@ -586,23 +585,13 @@ public class Generator {
 
     public static String generateCombinedValue(String s1, String s2) {
         Random r = new Random();
-        //System.out.println("combining: " + s1 + " ; " + s2);
-        //TODO questo if potrebbe rompere i bounds
-        if (s1.length() == 1 && s2.length() ==1){
+        if (s1.length() == 1 && s2.length() == 1){
             if (r.nextInt(10) % 2 == 0)
                 return s1;
             else
                 return s2;
         }
         int random = r.nextInt(100);
-        //Excluses combining in parts if string lengths are not enough
-        //So that other possibilities still have a even probability
-        /*
-        if (s1.length() < 3 || s2.length() < 3)
-            random = r.nextInt(66);
-        else {
-            random = r.nextInt(100);
-        }*/
         int s1Index = (int) Math.floor((double) s1.length() / 2);
         int s2Index = (int) Math.floor((double) s2.length() / 2);
         if (s1Index == 0) {
@@ -623,94 +612,14 @@ public class Generator {
         }
 
         String combined = "";
-        if (random < 50) {
-            //System.out.println("combined: " + s1 + "; " + s2);
+        if (random < 50)
             combined = s1.substring(0, s1Index) + (s2Index == 1 ? s2 : s2.substring(s2Index));
-        }else {
-            //System.out.println("combined: " + s2 + "; " + s1);
+        else
             combined = s2.substring(0, s2Index) + (s1Index == 1 ? s1 : s1.substring(s1Index));
-        }
-        //System.out.println("combined length: " + combined.length());
+
         return combined;
 
-/*
-        //Gets there only if random >= 66
-        String firstPart = "";
-        String center = "";
-        String lastPart = "";
-        int s1TwoThirdIndex = s1.length() - (int) Math.floor(s1.length() / 3);
-        int s2TwoThirdIndex = s2.length() - (int) Math.floor(s2.length() / 3);
-        if (random % 2 == 0) {
-            //System.out.println("combining first and last part of " + s1 + ", center of " + s2);
-            //separator1 empty -> separator2 empty
-
-            firstPart = s1.substring(0, (int) Math.floor(s1.length() / 3));
-            center = s2.substring((int) Math.floor(s2.length() / 3), s2TwoThirdIndex);
-            lastPart = s1.substring(s1TwoThirdIndex);
-
-
-            System.out.println(firstPart + "; " + center + "; " + lastPart);
-
-        } else {
-            //System.out.println("combining first and last part of " + s2 + ", center of " + s1);
-
-            firstPart = s2.substring(0, s2.length() / 3);
-            center = s1.substring(s1.length() / 3, s1TwoThirdIndex);
-            lastPart = s2.substring(s2TwoThirdIndex);
-
-
-            System.out.println(firstPart + "; " + center + "; " + lastPart);
-        }
-
-        return firstPart + center + lastPart;
-*/
     }
-
-    @Deprecated
-    private static String findSeparator(String s1, String s2) {
-        List<String> separators = new ArrayList<>();
-        StringBuilder separator = new StringBuilder();
-        separators.add("@");
-        separators.add(".");
-        separators.add(",");
-        separators.add("-");
-        separators.add(" ");
-        separators.add("+");
-        separators.add("/");
-        separators.add(":");
-        separators.add(";");
-        separators.add("\\");
-
-
-        //I due for ignorano i primi e ultimi caratteri perche se il separatore fosse in quelle posizioni sarebbe inutile
-        for(int i = 1; i < s1.length() - 1; ++i){
-            if (separators.contains(s1.charAt(i) + "")){
-                separator = new StringBuilder(s1.charAt(i) + "");
-
-                boolean found = false;
-                for(int j = 1; j < s2.length() - 1; ++j){
-                    if (separator.toString().equals(s2.charAt(j) + "")) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (found) {
-                    ++i;
-                    int j = s2.indexOf(separator.toString()) + separator.length();
-                    while(s1.charAt(i) == s2.charAt(j) && i < s1.length() - 1 && j < s2.length() - 1) {
-                        separator.append(s1.charAt(i));
-                        ++i;
-                    }
-                    return separator.toString();
-
-                }
-                separator = new StringBuilder();
-            }
-        }
-       // System.out.println("Separator found: " + separator);
-        return separator.toString();
-    }
-
     public Field getField(String name) {
         for(Field field : fields){
             if (field.getName().equalsIgnoreCase(name)) return field;

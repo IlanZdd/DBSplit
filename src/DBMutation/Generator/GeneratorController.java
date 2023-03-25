@@ -51,10 +51,8 @@ public class GeneratorController {
                 if (generators.containsKey(table)) {
                     List<ForeignKeyColumn> fks = graph.getForeignKeysInTable(table);
                     for (ForeignKeyColumn fk : fks){
-                        if (fk.getReferredPrimaryKey().equals(col.getName())) {
-                            //TODO check foreign values of autoincrementing primary keys
+                        if (fk.getReferredTable().equalsIgnoreCase(generatorName) && fk.getReferredPrimaryKey().equals(col.getName())) {
                             generators.get(table).addForeignValue(fk.getName(), value);
-
                         }
                     }
 
