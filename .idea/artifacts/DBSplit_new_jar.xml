@@ -1,0 +1,12 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="DBSplit-new:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/DBSplit_new_jar</output-path>
+    <root id="archive" name="DBSplit-new.jar">
+      <element id="module-output" name="DBSplit-new" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/libraries/PatternGenerator.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/libraries/GraphSQL.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/libraries/json-20220924.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/libraries/rgxgen-1.4.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

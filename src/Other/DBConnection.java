@@ -28,10 +28,10 @@ public class DBConnection{
 				//myConn = DriverManager.getConnection(server_URL + sv + "/?user="+user+"&password="+password);
 				myConn = DriverManager.getConnection(server_URL + sv + "/?serverTimezone=UTC", user, password);
 				try {
-					myConn.createStatement().execute("DROP DATABASE " + MainDebug.DB1);
+					myConn.createStatement().execute("DROP DATABASE " + Main.DB1);
 				} catch (SQLException ignored) { }
 				try {
-					myConn.createStatement().execute("DROP DATABASE " + MainDebug.DB2);
+					myConn.createStatement().execute("DROP DATABASE " + Main.DB2);
 				} catch (SQLException ignored) { }
 			}
 			else if (DBMS.equalsIgnoreCase("sqlite")) {//SQLite

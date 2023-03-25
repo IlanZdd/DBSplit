@@ -2,7 +2,6 @@ package src.DBSKnapsack;
 
 import Graph.*;
 import src.Other.DBConnection;
-import src.Other.MainDebug;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -41,7 +40,6 @@ public class DBSplit_Knapsack {
 
 	/* Algorithm required */
 	protected static Graph graph;
-	private  static boolean inverting = false;
 	private static Set<String> hadToAddAPK;
 	private static String fields;
 
@@ -71,9 +69,12 @@ public class DBSplit_Knapsack {
 		if (!checkParameters(DBMS, server_name, user, pwd, DB, DB1, DB2, percSplit, splitType, percOverlapping))
 			return false;
 
-		System.out.print("Entered parameters: server=" +sv + " username="+user + " password=" +pwd +
-				" original DB="+DB + " 1� half DB="+DB1 + " 2� half DB="+DB2 +
-				" split type="+splitType + " split %="+percent + " execution=knapsack");
+
+		System.out.print("Entered parameters: DBMS=" +DBMS + " server=" + sv + " username="+user+ " password=" +pwd +
+				" original DB="+ DB + " 1st half DB=" + DB1 + " 2nd half DB=" +
+				DB2 +" split type=" + splitType + " split %=" + percent);
+		if (splitType.equalsIgnoreCase(("overlapping"))) System.out.print(" overlapping%=" +percentOverlapping);
+		System.out.println(" execution=knapsack");
 
 		// Tries to connect to the original DB for the first time
 		try {
@@ -91,9 +92,6 @@ public class DBSplit_Knapsack {
 			System.out.println("Error: Invalid database parameters, couldn't create split database");
 			return false;
 		} else System.out.println("Databases created successfully.");
-
-		if (splitType.equalsIgnoreCase(("overlapping"))) System.out.print(" overlapping%="+percentOverlapping);
-		System.out.println(" DBMS="+DBMS + " execution=knapsack ");
 
 		System.out.println("\nApplying DBSplit...\n");
 
@@ -164,7 +162,6 @@ public class DBSplit_Knapsack {
 			percent = 100 - percSplit;
 			DBSplit_Knapsack.DB1 = DB2;
 			DBSplit_Knapsack.DB2 = DB1;
-			inverting = true;
 		} else {
 			DBSplit_Knapsack.DB1 = DB1;
 			DBSplit_Knapsack.DB2 = DB2;
@@ -281,93 +278,6 @@ public class DBSplit_Knapsack {
 
 				numTables++;
 				time = time + getTime();
-				if (reporting) MainDebug.report.get(table).setAlgorithm_runningTime(((double) System.currentTimeMillis()-startingTime)/1000);
-            }
-			//if report is active, gets information about the tables
-			if (reporting) {
-				if (inverting) {
-					String t = DB1;
-					DB1 = DB2;
-					DB2 = t;
-				}
-				Graph graph1 = null;
-				Graph graph2 = null;
-				switch (DBMS.toLowerCase()) {
-					case "sqlite" -> {
-						DBConnection.closeConn();
-						DBConnection.setConn(DBMS, sv, username, password, DB1);
-						graph1 = new Graph(DBMS, DBConnection.getConn(), DB1);
-						DBConnection.closeConn();
-						DBConnection.setConn(DBMS, sv, username, password, DB2);
-						graph2 = new Graph(DBMS, DBConnection.getConn(), DB2);
-						DBConnection.closeConn();
-					}
-					case "mysql" -> {
-						graph1 = new Graph(DBMS, DBConnection.getConn(), DB1);
-						graph2 = new Graph(DBMS, DBConnection.getConn(), DB2);
-					}
-				}
-				for (String t : graph.listTables()) {
-					assert graph1 != null;
-					MainDebug.report.get(t).setAlgorithm(graph1.getRecordNumberInTable(t),
-							graph2.getRecordNumberInTable(t));
-					try {
-						switch (DBMS.toLowerCase()) {
-							case  "mysql" -> {
-								query = formOverlappingQuery(t);
-								st = DBConnection.getConn().createStatement();
-								rs = st.executeQuery(query);
-
-								while (rs.next())
-									MainDebug.report.get(t).setAlgorithm_overlappingRecords(rs.getInt(1));
-							}
-							case "sqlite" -> {
-								try {
-									int count = 0;
-
-									ArrayList<Integer> rowidsList = new ArrayList<>();
-									query = "SELECT rowid FROM " + t;
-
-									DBConnection.closeConn();
-									DBConnection.setConn(DBSplit_Knapsack.DBMS, DBSplit_Knapsack.sv, DBSplit_Knapsack.username, DBSplit_Knapsack.password, DBSplit_Knapsack.DB1);
-									st = DBConnection.getConn().createStatement();
-									rs = st.executeQuery(query);
-
-									while (rs.next()) {
-										rowidsList.add(rs.getInt(1));
-									}
-
-									DBConnection.closeConn();
-									DBConnection.setConn(DBSplit_Knapsack.DBMS, DBSplit_Knapsack.sv, DBSplit_Knapsack.username, DBSplit_Knapsack.password, DBSplit_Knapsack.DB2);
-									st = DBConnection.getConn().createStatement();
-									rs = st.executeQuery(query);
-
-									//looks for common fk
-									while (rs.next()) {
-										if (rowidsList.contains(rs.getInt(1)))
-											count++;
-									}
-
-									MainDebug.report.get(t).setAlgorithm_overlappingRecords(count);
-								} catch (Exception se) {
-									System.out.println("Overlapping computation for table " +t+ " failed : " + se.getMessage());
-									System.out.println("\t" + query);
-								} finally {
-									query = "";
-									DBConnection.closeRs(rs);
-									DBConnection.closeSt(st);
-								}
-							}
-						}
-					} catch (SQLException se) {
-						System.out.println("Report generation failed: \n\t" + se.getMessage());
-						System.out.println("\t"+ query);
-					} finally {
-						query = "";
-						DBConnection.closeRs(rs);
-						DBConnection.closeSt(st);
-					}
-				}
 			}
 		} catch (Exception e) {
 			query = "";

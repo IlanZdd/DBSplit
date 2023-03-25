@@ -2,7 +2,6 @@ package src.DBSFromHigher;
 
 import Graph.*;
 import src.Other.DBConnection;
-import src.Other.MainDebug;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -41,7 +40,6 @@ public class DBSplit_from_higher {
 
 	/* Algorithm required */
 	protected static Graph graph;
-	private  static boolean inverting = false;
 	private static Set<String> hadToAddAPK;
 
 	/** Entry point to the algorithm; will check for parameters validity, try to connect and create the DBs; then
@@ -70,9 +68,11 @@ public class DBSplit_from_higher {
 		if (!checkParameters(DBMS, server_name, user, pwd, DB, DB1, DB2, percSplit, splitType, percOverlapping))
 			return false;
 
-		System.out.print("Entered parameters: server=" +sv + " username="+user + " password=" +pwd +
-				" original DB="+DB + " 1� half DB="+DB1 + " 2� half DB="+DB2 +
-				" split type="+splitType + " split %="+percent + " execution=alternative");
+		System.out.print("Entered parameters: DBMS=" +DBMS + " server=" + sv + " username="+user+ " password=" +pwd +
+				" original DB="+ DB + " 1st half DB=" + DB1 + " 2nd half DB=" +
+				DB2 +" split type=" + splitType + " split %=" + percent);
+		if (splitType.equalsIgnoreCase(("overlapping"))) System.out.print(" overlapping%=" +percentOverlapping);
+		System.out.println(" execution=fromHigher");
 
 		// Tries to connect to the original DB for the first time
 		try {
@@ -162,7 +162,6 @@ public class DBSplit_from_higher {
 			percent = 100 - percSplit;
 			DBSplit_from_higher.DB1 = DB2;
 			DBSplit_from_higher.DB2 = DB1;
-			inverting = true;
 		} else {
 			DBSplit_from_higher.DB1 = DB1;
 			DBSplit_from_higher.DB2 = DB2;
@@ -174,7 +173,7 @@ public class DBSplit_from_higher {
     /** Clones database DB in DB1, DB2 with tables and records
      * @return	True if clone is successful
      */
-    public static boolean createSplitDatabases() {
+    private static boolean createSplitDatabases() {
 
         switch (DBMS.toLowerCase()) {
             case "sqlite":
@@ -267,7 +266,7 @@ public class DBSplit_from_higher {
 
 	/** Evokes split function on each table.
 	 */
-	public static void prepareSplit() throws Exception {
+	private static void prepareSplit() throws Exception {
 		//gets all tables in topological order, explores all from sources to wells
 		for (String table : graph.sortTopological()) {
 			startingTime = System.currentTimeMillis();
@@ -278,109 +277,15 @@ public class DBSplit_from_higher {
 			numTables++;
 			time = time + getTime();
 
-			if (reporting) MainDebug.report.get(table).setAlgorithm_runningTime(getNowTime());
 		}
 
-		//if report is active, gets information about the tables
-		if (reporting) {
-			if (inverting) {
-				String t = DB1;
-				DB1 = DB2;
-				DB2 = t;
-			}
-
-			//creates the graphs for DB1 e DB2, to count records and overlapping
-			Graph graph1 = null;
-			Graph graph2 = null;
-			switch (DBMS.toLowerCase()) {
-				case "sqlite" -> {
-					DBConnection.closeConn();
-					DBConnection.setConn(DBMS, sv, username, password, DB1);
-					graph1 = new Graph(DBMS, DBConnection.getConn(), DB1);
-					DBConnection.closeConn();
-					DBConnection.setConn(DBMS, sv, username, password, DB2);
-					graph2 = new Graph(DBMS, DBConnection.getConn(), DB2);
-					DBConnection.closeConn();
-				}
-				case "mysql" -> {
-					graph1 = new Graph(DBMS, DBConnection.getConn(), DB1);
-					graph2 = new Graph(DBMS, DBConnection.getConn(), DB2);
-				}
-			}
-
-			for (String t : graph.listTables()) {
-				assert graph1 != null;
-				MainDebug.report.get(t).setAlgorithm(
-						graph1.getRecordNumberInTable(t),
-						graph2.getRecordNumberInTable(t));
-
-				String query = "";
-				switch (DBMS.toLowerCase()) {
-					case  "mysql" -> {
-						query = formOverlappingQuery(t);
-
-						try {
-							st = DBConnection.getConn().createStatement();
-							rs = st.executeQuery(query);
-
-							while (rs.next())
-								MainDebug.report.get(t).setAlgorithm_overlappingRecords(rs.getInt(1));
-						} catch (SQLException se) {
-							System.out.println("Reporting failed on overlapping computation" +
-									" for table " + t + ": " + se.getMessage());
-						} finally {
-							DBConnection.closeRs(rs);
-							DBConnection.closeSt(st);
-						}
-					}
-
-					case "sqlite" -> {
-						int count = 0;
-
-						ArrayList<Integer> rowidsList = new ArrayList<>();
-						query = "SELECT rowid FROM " + t;
-
-						try {
-							DBConnection.closeConn();
-							DBConnection.setConn(DBSplit_from_higher.DBMS, DBSplit_from_higher.sv, DBSplit_from_higher.username, DBSplit_from_higher.password, DBSplit_from_higher.DB1);
-							st = DBConnection.getConn().createStatement();
-							rs = st.executeQuery(query);
-
-							while (rs.next()) {
-								rowidsList.add(rs.getInt(1));
-							}
-
-							DBConnection.closeConn();
-							DBConnection.setConn(DBSplit_from_higher.DBMS, DBSplit_from_higher.sv, DBSplit_from_higher.username, DBSplit_from_higher.password, DBSplit_from_higher.DB2);
-							st = DBConnection.getConn().createStatement();
-							rs = st.executeQuery(query);
-
-							//looks for common fk
-							while (rs.next()) {
-								if (rowidsList.contains(rs.getInt(1))) count++;
-							}
-
-							MainDebug.report.get(t).setAlgorithm_overlappingRecords(count);
-						} catch (Exception se) {
-							System.out.println("Reporting failed on overlapping computation" +
-									" for table " +t+ ": " + se.getMessage());
-							//System.out.println("\t" + query);
-						} finally {
-							DBConnection.closeRs(rs);
-							DBConnection.closeSt(st);
-							DBConnection.closeConn();
-						}
-					}
-				}
-			}
-		}
 	}
 
 	/** Splits the given table in the databases DB1, DB2 according
 	 * to requests
 	 * @param table 	Table to split
 	 */
-	public static void split(String table) throws UnexpectedException {
+	private static void split(String table) throws UnexpectedException {
 		long startTime = System.currentTimeMillis();
 
         //Computes parameters
@@ -876,6 +781,7 @@ public class DBSplit_from_higher {
 		//If we are in a referred node, there may already be records in DB2 that aren't
 		//	referred anymore in DB1, because they were references for the n records we moved.
 		//	At most n will be removed
+		// TODO Recently added, time is worse by at most 10 second and DB1 is slightly worse, but DB2 and ol is better
 		if (DBMS.equalsIgnoreCase("mysql") && requiresCheck) {
 			query = "DELETE FROM " + DB1 + "." + table +
 					" WHERE " + getPrimaryKeys(table, true) + " IN " +

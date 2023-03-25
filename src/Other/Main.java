@@ -23,10 +23,10 @@ public class Main {
     private static int percent = 0;
     private static int percentOverlapping = 0;
     private static String DB;
-    private static String DB1;
-    private static String DB2;
+    protected static String DB1;
+    protected static String DB2;
 
-    static boolean prova = false;
+    static boolean prova = true;
     public static void main(String[] args) {
         System.out.println("Running DBSplit...\n");
         System.out.println("Arguments: <dbms> <server> <user> <password> <input-db> <output-db1> <output-db2> <perc-split>" +
@@ -41,10 +41,10 @@ public class Main {
 
         while (run) {
             if (prova) {
-                DBMS = "sqlite";
-                percent = 50;
-                splitType = "overlapping";
-                percentOverlapping = 50; //goes to 0 if disjoint
+                DBMS = "mysql";
+                percent = 30;
+                splitType = "disjoint";
+                percentOverlapping = 0; //goes to 0 if disjoint
                 execution = 2;
                 run = false;
 
@@ -61,7 +61,7 @@ public class Main {
                         sv = "localhost:3306";
                         user = "root";
                         password = "Password_123";
-                        DB = "pokemon_db";
+                        DB = "video_games";
                         DB1 = "DB_1";
                         DB2 = "DB_2";
                     }
@@ -112,7 +112,6 @@ public class Main {
                 //TODO not sure if this is a desired output, change it eventually
                 System.out.println("Arguments were detected, but the number is incorrect.");
                 System.exit(1);
-
             } else {
                 //user input
 
@@ -131,9 +130,9 @@ public class Main {
                 System.out.print("\tInput Database (path to file.db/file.sqlite for SQLite): \n\t\t");
                 DB = input.nextLine();
 
-                System.out.print("\tOutput Database 1� half (path to file.db/file.sqlite for SQLite): \n\t\t");
+                System.out.print("\tOutput Database 1st half (path to file.db/file.sqlite for SQLite): \n\t\t");
                 DB1 = input.nextLine();
-                System.out.print("\tOutput Database 2� half (path to file.db/file.sqlite for SQLite): \n\t\t");
+                System.out.print("\tOutput Database 2nd half (path to file.db/file.sqlite for SQLite): \n\t\t");
                 DB2 = input.nextLine();
 
                 System.out.print("\tSplit %: \n\t\t");
@@ -191,6 +190,20 @@ public class Main {
             if (run)
                 run = retry();
         }
+
+        System.out.println("DBSplit Completed...");
+        System.out.println("Summary:");
+        System.out.println("DB Name: " + DB);
+        System.out.println("# Tables: " + numTables);
+        System.out.println("1st Half DB Name: " + DB1);
+        System.out.println("2nd Half DB Name: " + DB2);
+        System.out.println("Split %: " + percent + "%");
+        System.out.println("Split Type: " + splitType);
+        if (splitType.equalsIgnoreCase("overlapping")) {
+            System.out.println("Overlapping records %: " + percentOverlapping + "%"); }
+        System.out.println("Execution Time (s): " + (double) time / 1000 + " s");
+        System.out.println("Errors Found: " + errors);
+        System.exit(0);
 
         if (DBMS.equalsIgnoreCase("mysql")) {
             run = true;
@@ -250,18 +263,6 @@ public class Main {
             }
         }
 
-        System.out.println("DBSplit Completed...");
-        System.out.println("Summary:");
-        System.out.println("DB Name: " + DB);
-        System.out.println("# Tables: " + numTables);
-        System.out.println("1st Half DB Name: " + DB1);
-        System.out.println("2nd Half DB Name: " + DB2);
-        System.out.println("Split %: " + percent + "%");
-        System.out.println("Split Type: " + splitType);
-        if (splitType.equalsIgnoreCase("overlapping")) {
-            System.out.println("Overlapping records %: " + percentOverlapping + "%"); }
-        System.out.println("Execution Time (s): " + (double) time / 1000 + " s");
-        System.out.println("Errors Found: " + errors);
     }
 
     public static boolean retry() {

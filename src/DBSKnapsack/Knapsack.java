@@ -2,7 +2,6 @@ package src.DBSKnapsack;
 
 import Graph.ForeignKeyColumn;
 import src.Other.DBConnection;
-import src.Other.MainDebug;
 
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -26,7 +25,7 @@ public class Knapsack {
 
     /** Function for Sources and Mid-node for MySQL; multiple execution are enabled to avoid bad fks */
     protected static KS_Return entryPointSources_MySQL(String table, List<ForeignKeyColumn> allFKs, int neededRecords, int c, int n) {
-        long knapsackTimer = System.currentTimeMillis();
+
         int fkIndex = 0;
         KS_Return returnValue = new KS_Return();
         length = 0;
@@ -119,9 +118,6 @@ public class Knapsack {
                 returnValue.setSum(sum);
                 break;
             }
-            if (DBSplit_Knapsack.reporting)
-                MainDebug.report.get(table).setAlgorithm_knapsackTime((double)(System.currentTimeMillis()-knapsackTimer)/1000);
-
             return returnValue;
         } catch (Exception e) {
             e.printStackTrace();
@@ -191,7 +187,6 @@ public class Knapsack {
 
     /** Function for Mid-node in SQLite; can't query between DBs, so it needs a different logic */
     protected static KS_Return entryPointMidSQLite(String table, List<ForeignKeyColumn> allFKs, int n, int m, int u, int c) {
-        long knapsackTimer = System.currentTimeMillis();
         length = 0;
         ForeignKeyColumn fk = null;
         KS_Return returnValue = new KS_Return();
@@ -318,9 +313,6 @@ public class Knapsack {
             returnValue.setCommons(commonFKs);
             returnValue.setDeleteDB1(deleteNFromDB1);
             returnValue.setDeleteDB2(deleteMFromDB2);
-
-            if (DBSplit_Knapsack.reporting)
-                MainDebug.report.get(table).setAlgorithm_knapsackTime((double)(System.currentTimeMillis()-knapsackTimer)/1000);
 
             return returnValue;
 
