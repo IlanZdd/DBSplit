@@ -66,11 +66,11 @@ public class DBSplit_Baseline {
 		if (!checkParameters(DBMS, server_name, user, pwd, DB, DB1, DB2, percSplit, splitType, percOverlapping))
 			return false;
 
-		System.out.print("Entered parameters: server=" + sv + " username="+user+ " password=" +pwd +
-				" original DB="+ DB + " 1� half DB=" + DB1 + " 2� half DB=" +
+		System.out.print("Entered parameters: DBMS=" +DBMS + " server=" + sv + " username="+user+ " password=" +pwd +
+				" original DB="+ DB + " 1st half DB=" + DB1 + " 2nd half DB=" +
 				DB2 +" split type=" + splitType + " split %=" + percent);
 		if (splitType.equalsIgnoreCase(("overlapping"))) System.out.print(" overlapping%=" +percentOverlapping);
-		System.out.println(" DBMS=" +DBMS + " execution=baseline");
+		System.out.println(" execution=baseline");
 
 		try {
 			DBConnection.setConn(DBMS, sv, username, password, originalDB);
@@ -252,123 +252,6 @@ public class DBSplit_Baseline {
 				startingTime = System.currentTimeMillis();
 				split(table);
 				time = time + getTime();
-				if (reporting)
-					MainDebug.report.get(table).setBaseline_runningTime(getNowTime());
-			}
-
-			//if report is active, gets information about the tables
-			if (reporting) {
-				Graph graph1 = null;
-				Graph graph2 = null;
-
-				switch (DBMS.toLowerCase()) {
-					case "sqlite" -> {
-						DBConnection.closeConn();
-						DBConnection.setConn(DBMS, sv, username, password, DB1);
-						graph1 = new Graph(DBMS, DBConnection.getConn(), DB1);
-						DBConnection.closeConn();
-
-						DBConnection.setConn(DBMS, sv, username, password, DB2);
-						graph2 = new Graph(DBMS, DBConnection.getConn(), DB2);
-						DBConnection.closeConn();
-					}
-					case "mysql" -> {
-						graph1 = new Graph(DBMS, DBConnection.getConn(), DB1);
-						graph2 = new Graph(DBMS, DBConnection.getConn(), DB2);
-					}
-				}
-				for (String t : graph.listTables()) {
-					assert graph1 != null;
-					MainDebug.report.get(t).setBaseline(graph1.getRecordNumberInTable(t),
-							graph2.getRecordNumberInTable(t));
-					try {
-						switch (DBMS.toLowerCase()) {
-							case  "mysql" -> {
-								if (graph.hasPrimaryKeyInTable(t)) {
-									// SELECT count(*)
-									// FROM DB1.table
-									// WHERE (pk1, .., pkn) IN (
-									// 		SELECT pk1, ... , pkn
-									// 		FROM DB2.table );
-									String PKString = getPrimaryKeys(t, false);
-
-									query = "SELECT count(*) " +
-											"FROM " + DB1+"."+t +
-											" WHERE ";
-									query += (graph.isPrimaryKeyComposedInTable(t)) ? "(" + PKString + ")" : PKString;
-									query += " IN (SELECT " + PKString + " " + "FROM " + DB2+"."+t + ")";
-
-								} else {
-									// SELECT table.*
-									// FROM DB1.table, (SELECT * FROM DB2.table) as t
-									// WHERE (table.column1 IS NULL or table.column1=t.column1) and
-									//		table.column2=t.column2;
-									query = "SELECT count(*) " +
-											"FROM (SELECT " + DB1+"."+t + ".* " +
-											"FROM " + DB1+"."+t + ", (SELECT * FROM "+ DB2 +"."+t+") as t " +
-											"WHERE ";
-
-									for (Column column: graph.getColumnsInTable(t)) {
-										if (column.isNullable())
-											query += "( " + t + "." + column.getName() + " is NULL or " +
-													t + "." + column.getName() + " = t." + column.getName() + ")";
-										else query += t+"."+column.getName() +" = t."+column.getName();
-
-										query += " and ";
-									}
-									query = query.substring(0, query.length()-5) + ") AS tt";
-								}
-								st = DBConnection.getConn().createStatement();
-								rs = st.executeQuery(query);
-
-								while (rs.next())
-									MainDebug.report.get(t).setBaseline_overlappingRecords(rs.getInt(1));
-							}
-							case "sqlite" -> {
-								try {
-									int count = 0;
-
-									ArrayList<Integer> rowidsList = new ArrayList<>();
-									query = "SELECT rowid FROM " + t;
-
-									DBConnection.closeConn();
-									DBConnection.setConn(DBSplit_Baseline.DBMS, DBSplit_Baseline.sv, DBSplit_Baseline.username, DBSplit_Baseline.password, DBSplit_Baseline.DB1);
-									st = DBConnection.getConn().createStatement();
-									rs = st.executeQuery(query);
-
-									while (rs.next()) {
-										rowidsList.add(rs.getInt(1));
-									}
-
-									DBConnection.closeConn();
-									DBConnection.setConn(DBSplit_Baseline.DBMS, DBSplit_Baseline.sv, DBSplit_Baseline.username, DBSplit_Baseline.password, DBSplit_Baseline.DB2);
-									st = DBConnection.getConn().createStatement();
-									rs = st.executeQuery(query);
-
-									//looks for common fk
-									while (rs.next()) {
-										if (rowidsList.contains(rs.getInt(1)))
-											count++;
-									}
-
-									MainDebug.report.get(t).setBaseline_overlappingRecords(count);
-								} catch (Exception se) {
-									System.out.println("Overlapping computation for table " +t+ " failed : " + se.getMessage());
-									System.out.println("\t" + query);
-								} finally {
-									query = "";
-									DBConnection.closeRs(rs);
-									DBConnection.closeSt(st);
-								}
-							}
-						}
-					} catch (SQLException se) {
-						System.out.println("Report generation failed: \n\t" + se.getMessage());
-					} finally {
-						DBConnection.closeRs(rs);
-						DBConnection.closeSt(st);
-					}
-				}
 			}
 		} catch (Exception e) {
 			throw new RuntimeException(e);

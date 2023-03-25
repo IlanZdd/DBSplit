@@ -2,7 +2,6 @@ package src.DBSFromHigher;
 
 import Graph.ForeignKeyColumn;
 import src.Other.DBConnection;
-import src.Other.MainDebug;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -66,9 +65,6 @@ public class GetFromHigher {
                 returnValue.set(fks, fk);
                 returnValue.setSum(sum);
 
-                if (DBSplit_from_higher.reporting)
-                    MainDebug.report.get(table).setAlgorithm_knapsackTime((double)(System.currentTimeMillis()-timer)/1000);
-
                 // if all flags are off, we chose this key
                 if (!(allOne || sum < (rR + c + n)))
                     return returnValue;
@@ -79,8 +75,6 @@ public class GetFromHigher {
             throw se;
         }
 
-        if (DBSplit_from_higher.reporting)
-            MainDebug.report.get(table).setAlgorithm_knapsackTime((double)(System.currentTimeMillis()-timer)/1000);
         return returnValue;
     }
 
@@ -259,9 +253,6 @@ public class GetFromHigher {
             returnValue.setCommons(commonFKs.toString());
             returnValue.setDeleteDB1(deleteNFromDB1.toString());
             returnValue.setDeleteDB2(deleteMFromDB2.toString());
-
-            if (DBSplit_from_higher.reporting)
-                MainDebug.report.get(table).setAlgorithm_knapsackTime((double)(System.currentTimeMillis()-knapsackTimer)/1000);
 
             return returnValue;
         } catch (Exception e) {
